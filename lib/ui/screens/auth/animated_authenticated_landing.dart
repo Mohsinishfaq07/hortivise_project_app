@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hidden_drawer/flutter_hidden_drawer.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:horti_vige/core/exceptions/app_exception.dart';
 import 'package:horti_vige/providers/user_provider.dart';
-import 'package:horti_vige/ui/screens/auth/signup_screen.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
-import 'package:horti_vige/ui/utils/extensions/extensions.dart';
-import 'package:horti_vige/ui/utils/extensions/validation_helpers.dart';
-import 'package:horti_vige/ui/utils/styles/text_styles.dart';
-import 'package:horti_vige/ui/widgets/app_filled_button.dart';
 import 'package:horti_vige/ui/widgets/app_nav_drawer.dart';
-import 'package:horti_vige/ui/widgets/app_text_input.dart';
 import 'package:horti_vige/ui/widgets/exit_bottom_sheet.dart';
+import 'package:provider/provider.dart';
 
 class AnimatedLandingScreen extends StatefulWidget {
   const AnimatedLandingScreen({super.key});
@@ -69,6 +63,13 @@ class _AnimatedLandingScreenState extends State<AnimatedLandingScreen>
     );
     startAnimation();
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _finalUiController.dispose();
+    super.dispose();
   }
 
   @override
@@ -246,21 +247,25 @@ class _AnimatedLandingScreenState extends State<AnimatedLandingScreen>
   void startAnimation() {
     _textController.forward();
 
+    if (!mounted) return;
     setState(() {
       animationPlayed = true;
     });
     Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
       setState(() {
         _imageOpacity = 1.0;
       });
     });
     Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
       setState(() {
         _startExpansion = true;
         _imageOpacity = 0.0;
       });
 
       Future.delayed(const Duration(seconds: 4), () {
+        if (!mounted) return;
         setState(() {
           _textController.reverse();
           _startExpansion = false;
@@ -270,6 +275,7 @@ class _AnimatedLandingScreenState extends State<AnimatedLandingScreen>
         });
 
         Future.delayed(const Duration(seconds: 2), () {
+          if (!mounted) return;
           _finalUiController.forward();
           Navigator.pushNamed(context, ZoomDrawerScreen.routeName);
         });

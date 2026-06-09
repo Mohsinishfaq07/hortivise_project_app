@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/extensions/validation_helpers.dart';
@@ -25,16 +26,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     BuildContext context,
     String message,
   ) {
-    final snackBar = SnackBar(
-      content: Text(
-        message,
-        style: const TextStyle(color: Colors.white),
-      ),
+    showAppToast(
+      message,
       backgroundColor: Colors.green,
-      duration: const Duration(seconds: 3), // Adjust the duration as needed
+      textColor: Colors.white,
+      toastLength: Toast.LENGTH_LONG,
     );
-
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   @override

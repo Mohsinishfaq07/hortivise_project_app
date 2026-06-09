@@ -15,6 +15,15 @@ import 'package:horti_vige/core/utils/helpers/preference_manager.dart';
 class UserConsultantsPage extends StatelessWidget {
   const UserConsultantsPage({super.key});
 
+  String _friendlyFirestoreError(Object? error) {
+    final text = error?.toString() ?? '';
+    if (text.contains('permission-denied') ||
+        text.contains('permission denied')) {
+      return 'Permission denied: Firestore rules are blocking this data.';
+    }
+    return 'Something went wrong when connecting to server, please try again later!';
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserId =
@@ -62,7 +71,7 @@ class UserConsultantsPage extends StatelessWidget {
                   if (snapshots.hasError) {
                     return Center(
                       child: Text(
-                        'Something went wrong when connecting to server, please try again later! ${snapshots.error}',
+                        _friendlyFirestoreError(snapshots.error),
                       ),
                     );
                   } else {

@@ -12,6 +12,7 @@ import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/ui/widgets/app_text_input.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 import 'package:horti_vige/core/utils/app_consts.dart';
 import 'package:provider/provider.dart';
 
@@ -113,11 +114,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                               },
                               icon: const Icon(AppIcons.ic_back_ios),
                             ),
-                            CircleAvatar(
+                            UserProfileAvatar(
+                              imageUrl: otherUser.profileUrl,
                               radius: 24,
-                              backgroundImage: NetworkImage(
-                                otherUser.profileUrl,
-                              ),
                             ),
                           ],
                         ),

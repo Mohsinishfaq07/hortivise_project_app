@@ -1,23 +1,15 @@
 import 'dart:convert';
 import 'dart:math';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:horti_vige/firebase_options.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
-import 'package:timezone/data/latest.dart' as latestTz;
-import 'package:timezone/standalone.dart' as standaloneTz;
-import 'package:timezone/timezone.dart' as latestTz;
-import 'package:http/http.dart' as http;
-import 'dart:developer' as d;
+import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/standalone.dart' as standalone_tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:http/http.dart' as http;
 
 class NotificationService {
   NotificationService._();
@@ -29,28 +21,20 @@ class NotificationService {
   }
 
   static Future<void> _configureLocalTimeZone() async {
-    final timeZoneName = await FlutterTimezone.getLocalTimezone();
-    standaloneTz.setLocalLocation(standaloneTz.getLocation(timeZoneName));
+    final timeZoneName =
+        (await FlutterTimezone.getLocalTimezone()).identifier;
+    standalone_tz.setLocalLocation(standalone_tz.getLocation(timeZoneName));
   }
 
   static Future<void> _initLocalNotifications() async {
     await FlutterLocalNotificationsPlugin().initialize(
-      InitializationSettings(
+      settings: InitializationSettings(
         android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
           requestSoundPermission: false,
           requestCriticalPermission: true,
-          onDidReceiveLocalNotification: (id, title, body, payload) async {
-            // if (payload == 'progress') {
-            // GroundsApp.navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            //   Routes.progress,
-            //   (route) =>
-            //       route.settings.name == Routes.progress || route.isFirst,
-            // );
-            // }
-          },
         ),
       ),
       // onDidReceiveNotificationResponse: notificationTapBackground,   these handlers are causing multiple thread running issue
@@ -104,7 +88,7 @@ class NotificationService {
       });
 
       try {
-        latestTz.initializeTimeZones();
+        tz_data.initializeTimeZones();
       } catch (e) {
         e.logError();
       }
@@ -118,7 +102,7 @@ class NotificationService {
   static void _onNotification(RemoteMessage message) {
     if (message.notification != null) {
       sendNotificationNow(
-        title: message.notification!.title ?? 'HortiVise',
+        title: message.notification!.title ?? 'ebooking',
         body: message.notification!.body ?? '',
       );
     }
@@ -138,8 +122,8 @@ class NotificationService {
   static NotificationDetails notificationDetails() {
     return const NotificationDetails(
       android: AndroidNotificationDetails(
-        'hortivise',
-        'hortivise_local_channel',
+        'ebooking',
+        'ebooking_local_channel',
         importance: Importance.max,
         priority: Priority.max,
         icon: 'ic_launcher',
@@ -164,18 +148,16 @@ class NotificationService {
       'Notification Scheduled'.log();
       try {
         await FlutterLocalNotificationsPlugin().zonedSchedule(
-          Random().nextInt(10000000),
-          'Hortivise',
-          'Your appointment is coming up!',
-          latestTz.TZDateTime.from(
+          id: Random().nextInt(10000000),
+          title: 'ebooking',
+          body: 'Your appointment is coming up!',
+          scheduledDate: tz.TZDateTime.from(
             scheduleTime,
-            latestTz.local,
+            tz.local,
           ),
-          notificationDetails(),
+          notificationDetails: notificationDetails(),
           matchDateTimeComponents: DateTimeComponents.dateAndTime,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
         );
       } catch (e) {
         e.logError();
@@ -188,10 +170,10 @@ class NotificationService {
     required String body,
   }) async {
     await FlutterLocalNotificationsPlugin().show(
-      Random().nextInt(10000000),
-      title,
-      body,
-      notificationDetails(),
+      id: Random().nextInt(10000000),
+      title: title,
+      body: body,
+      notificationDetails: notificationDetails(),
     );
   }
 
@@ -261,7 +243,7 @@ class NotificationService {
   //     id,
   //     'Consultation Reminder',
   //     message,
-  //     latestTz.TZDateTime.from(appointmentDateTime, latestTz.local),
+  //     tz.TZDateTime.from(appointmentDateTime, tz.local),
   //     NotificationDetails(
   //       android: AndroidNotificationDetails(
   //         channel.id,
@@ -286,7 +268,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 // void onPatientStart(ServiceInstance service) async {
 //   d.log('Patient Background service started');
-//   // latestTz.initializeTimeZones();
+//   // tz_data.initializeTimeZones();
 //   d.log('Patient Timezones initialized in background service');
 
 //   // await Firebase.initializeApp(

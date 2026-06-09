@@ -23,7 +23,9 @@ class ConsultantSideNotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: androidInitializationSettings);
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await flutterLocalNotificationsPlugin.initialize(
+      settings: initializationSettings,
+    );
     d.log('Consultant Local notifications initialized');
   }
 
@@ -38,11 +40,11 @@ class ConsultantSideNotificationService {
         importance: Importance.max);
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      notificationId, // Use unique ID for each notification
-      'Consultation Reminder',
-      message,
-      tz.TZDateTime.from(appointmentDateTime, tz.local),
-      NotificationDetails(
+      id: notificationId,
+      title: 'Consultation Reminder',
+      body: message,
+      scheduledDate: tz.TZDateTime.from(appointmentDateTime, tz.local),
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           channel.id,
           channel.name,
@@ -50,9 +52,7 @@ class ConsultantSideNotificationService {
           priority: Priority.high,
         ),
       ),
-      androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
 
     d.log(

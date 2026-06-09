@@ -6,6 +6,7 @@ import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/core/utils/app_date_utils.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 
 class ItemChat extends StatelessWidget {
   const ItemChat({
@@ -35,14 +36,13 @@ class ItemChat extends StatelessWidget {
               profileUrl: otherUser.profileUrl,
               isAuthenticated: true,
               uId: otherUser.userId,
-              stripeId: 'N/A',
             ),
           );
         },
         titleAlignment: ListTileTitleAlignment.top,
-        leading: CircleAvatar(
+        leading: UserProfileAvatar(
+          imageUrl: otherUser.profileUrl,
           radius: 45,
-          backgroundImage: NetworkImage(otherUser.profileUrl),
         ),
         title: Text(
           otherUser.userName,

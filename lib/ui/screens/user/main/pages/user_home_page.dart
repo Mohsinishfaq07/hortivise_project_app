@@ -10,6 +10,7 @@ import 'package:horti_vige/ui/screens/user/consultant_details_screen.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 import 'package:horti_vige/core/utils/app_consts.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -32,32 +33,51 @@ class _UserHomePageState extends State<UserHomePage> {
   String searchText = '';
 
   Future<void> _fetchConsultationDates() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('Consultations')
-        .where('customer.id', isEqualTo: currentUserId)
-        .get();
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('Consultations')
+          .where('customer.id', isEqualTo: currentUserId)
+          .get();
 
-    final consultationMap = <DateTime, List<dynamic>>{};
+      final consultationMap = <DateTime, List<dynamic>>{};
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
 
-      final consultationDate = DateTime.parse(data['startTime']);
+        final consultationDate = DateTime.parse(data['startTime']);
 
-      final dateOnly = DateTime(
-          consultationDate.year, consultationDate.month, consultationDate.day);
+        final dateOnly = DateTime(
+            consultationDate.year, consultationDate.month, consultationDate.day);
 
-      // Add consultation date to the map
-      if (consultationMap.containsKey(dateOnly)) {
-        consultationMap[dateOnly]?.add(data);
-      } else {
-        consultationMap[dateOnly] = [data];
+        // Add consultation date to the map
+        if (consultationMap.containsKey(dateOnly)) {
+          consultationMap[dateOnly]?.add(data);
+        } else {
+          consultationMap[dateOnly] = [data];
+        }
       }
-    }
 
-    setState(() {
-      _consultationDates = consultationMap;
-    });
+      if (!mounted) return;
+      setState(() {
+        _consultationDates = consultationMap;
+      });
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      // Avoid crash when Firestore rules block query.
+      setState(() {
+        _consultationDates = {};
+      });
+      d.log('Consultations calendar fetch failed: ${e.code} ${e.message}');
+    }
+  }
+
+  String _friendlyFirestoreError(Object? error) {
+    final text = error?.toString() ?? '';
+    if (text.contains('permission-denied') ||
+        text.contains('permission denied')) {
+      return 'Permission denied: Firestore rules are blocking this data.';
+    }
+    return 'Something went wrong when connecting to server, please try again later!';
   }
 
   @override
@@ -182,17 +202,10 @@ class _UserHomePageState extends State<UserHomePage> {
                 onTap: () => ZoomDrawer.of(context)?.toggle(),
                 child: Padding(
                   padding: const EdgeInsets.only(left: 12),
-                  child: CircleAvatar(
+                  child: UserProfileAvatar(
+                    imageUrl:
+                        userProvider.getCurrentUser()?.profileUrl ?? '',
                     radius: 24,
-                    backgroundImage: userProvider.getCurrentUser() != null &&
-                            userProvider
-                                .getCurrentUser()!
-                                .profileUrl
-                                .startsWith('http')
-                        ? NetworkImage(
-                            userProvider.getCurrentUser()!.profileUrl,
-                          )
-                        : null,
                   ),
                 ),
               );
@@ -285,7 +298,7 @@ class _UserHomePageState extends State<UserHomePage> {
                           debugPrint('snap shot error${snapshots.error}');
                           return Center(
                             child: Text(
-                              'Something went wrong when connecting to server, please try again later! ${snapshots.error}',
+                              _friendlyFirestoreError(snapshots.error),
                             ),
                           );
                         } else {

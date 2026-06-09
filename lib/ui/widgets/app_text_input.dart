@@ -193,11 +193,13 @@ class _AppTextInputState extends State<AppTextInput> {
 
   Widget errorToolTip() {
     return SuperTooltip(
-      hasShadow: false,
-      backgroundColor: AppColors.colorRed,
-      borderColor: AppColors.appGreenMaterial,
-      borderRadius: 8,
-      elevation: 1,
+      style: TooltipStyle(
+        hasShadow: false,
+        backgroundColor: AppColors.colorRed,
+        borderColor: AppColors.appGreenMaterial,
+        borderRadius: 8,
+        elevation: 1,
+      ),
       content: Text(
         widget.errorText ?? 'Something went wrong...',
         style: AppTextStyles.bodyStyleMedium.changeColor(AppColors.colorWhite),

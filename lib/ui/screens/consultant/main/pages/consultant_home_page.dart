@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
-import 'package:horti_vige/Services/consultant_side_service.dart';
-import 'package:horti_vige/providers/consultation_pricing_provider.dart';
-import 'package:horti_vige/ui/screens/consultant/consultation_pricing/consultation_pricing_screen.dart';
-import 'package:horti_vige/ui/widgets/app_filled_button.dart';
 import 'package:provider/provider.dart';
 
 import 'package:horti_vige/data/enums/consultation_status.dart';
 import 'package:horti_vige/data/enums/days.dart';
+import 'package:horti_vige/data/models/consultation/consultation_model.dart';
 import 'package:horti_vige/data/models/user/user_model.dart';
-import 'package:horti_vige/data/services/stripe.dart';
 import 'package:horti_vige/providers/consultations_provider.dart';
 import 'package:horti_vige/providers/user_provider.dart';
 import 'package:horti_vige/ui/dialogs/waiting_dialog.dart';
@@ -20,6 +16,7 @@ import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/ui/widgets/app_horizontal_choise_chips.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 
 class ConsultantHomePage extends StatefulWidget {
   const ConsultantHomePage({super.key});
@@ -40,16 +37,13 @@ class _ConsultantHomePageState extends State<ConsultantHomePage> {
     //   await context.read<ConsultationPricingProvider>().init();
     //   if (context.mounted) setState(() {});
     // }
-    Future.delayed(
-      Duration.zero,
-      () async {
-        await context.read<ConsultationPricingProvider>().init();
-      },
-    );
-    Future.delayed(const Duration(seconds: 5), () {
-      StripeController.instance.findStripeSttatus(context);
-    });
-
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   if (!context.mounted) return;
+    //   context.read<ConsultationPricingProvider>().init().catchError(
+    //     (Object e, StackTrace st) {
+    //       debugPrint('ConsultationPricingProvider.init failed: $e');
+    //     },
+    //   );
     // });
   }
 
@@ -68,17 +62,10 @@ class _ConsultantHomePageState extends State<ConsultantHomePage> {
                 onTap: () => ZoomDrawer.of(context)?.toggle(),
                 child: Padding(
                   padding: const EdgeInsets.only(left: 12),
-                  child: CircleAvatar(
+                  child: UserProfileAvatar(
+                    imageUrl:
+                        userProvider.getCurrentUser()?.profileUrl ?? '',
                     radius: 24,
-                    backgroundImage: userProvider.getCurrentUser() != null &&
-                            userProvider
-                                .getCurrentUser()!
-                                .profileUrl
-                                .startsWith('http')
-                        ? NetworkImage(
-                            userProvider.getCurrentUser()!.profileUrl,
-                          )
-                        : null,
                   ),
                 ),
               );
@@ -207,146 +194,81 @@ class _ConsultantHomePageState extends State<ConsultantHomePage> {
               );
             },
           ),
+          12.height,
+          Padding(
+            padding: 12.horizontalPadding,
+            child: Text(
+              'Booking Requests',
+              style: AppTextStyles.bodyStyleMedium.changeSize(16),
+            ),
+          ),
           Expanded(
-            child: Consumer<ConsultationPricingProvider>(
-              builder: (_, provider, __) {
-                if (provider.consultationPricingModel != null) {
-                  return Column(
-                    children: [
-                      5.height,
-                      Padding(
-                        padding: 12.horizontalPadding,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Booking Requests',
-                              style:
-                                  AppTextStyles.bodyStyleMedium.changeSize(16),
+            child: Padding(
+              padding: 12.horizontalPadding,
+              child: Consumer<ConsultationProvider>(
+                builder: (_, provider, __) =>
+                    StreamBuilder<List<ConsultationModel>>(
+                  stream: provider
+                      .getAllConsultationPendingRequestsBySpecialist(),
+                  initialData: const <ConsultationModel>[],
+                  builder: (ctx, snapshots) {
+                    switch (snapshots.connectionState) {
+                      case ConnectionState.waiting:
+                        if ((snapshots.data ?? []).isEmpty) {
+                          return const Center(
+                            child: Text(
+                              'No new bookings',
+                              style: AppTextStyles.bodyStyleMedium,
                             ),
-                            TextButton(
-                              onPressed: () {},
-                              child: Text(
-                                '', //"View All",
-                                style: AppTextStyles.bodyStyle
-                                    .changeColor(AppColors.colorGreen),
-                              ),
+                          );
+                        }
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: AppColors.colorGreen,
+                            backgroundColor: AppColors.colorGrayLight,
+                          ),
+                        );
+                      default:
+                        if (snapshots.hasError) {
+                          return Center(
+                            child: Text(
+                              'Something went wrong when connecting to server, please try again later! ${snapshots.error}',
                             ),
-                          ],
-                        ),
-                      ),
-                      5.height,
-                      Expanded(
-                        child: Padding(
-                          padding: 12.horizontalPadding,
-                          child: Consumer<ConsultationProvider>(
-                            builder: (_, provider, __) => StreamBuilder(
-                              stream: provider
-                                  .getAllConsultationPendingRequestsBySpecialist(),
-                              builder: (ctx, snapshots) {
-                                switch (snapshots.connectionState) {
-                                  case ConnectionState.waiting:
-                                    return const Center(
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 3,
-                                        color: AppColors.colorGreen,
-                                        backgroundColor:
-                                            AppColors.colorGrayLight,
-                                      ),
-                                    );
-                                  default:
-                                    if (snapshots.hasError) {
-                                      return Center(
-                                        child: Text(
-                                          'Something went wrong when connecting to server, please try again later! ${snapshots.error}',
-                                        ),
-                                      );
-                                    } else {
-                                      final consultationRequests =
-                                          snapshots.data!;
+                          );
+                        }
+                        final consultationRequests =
+                            snapshots.data ?? const <ConsultationModel>[];
 
-                                      if (consultationRequests.isEmpty) {
-                                        return const Center(
-                                          child: Text(
-                                            'No booking requests',
-                                            style:
-                                                AppTextStyles.bodyStyleMedium,
-                                          ),
-                                        );
-                                      }
+                        if (consultationRequests.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              'No new bookings',
+                              style: AppTextStyles.bodyStyleMedium,
+                            ),
+                          );
+                        }
 
-                                      return ListView.builder(
-                                        itemCount: consultationRequests.length,
-                                        itemBuilder: (ctx, index) {
-                                          return ItemBookingRequest(
-                                            requestModel:
-                                                consultationRequests[index],
-                                            onItemClick: () {
-                                              // Navigator.of(context).push(MaterialPageRoute(
-                                              //     builder: (context) => VideoCallScreen()));
-                                            },
-                                            onItemAction: (
-                                              status,
-                                              id,
-                                            ) {
-                                              _handleDecisionButtonClick(
-                                                id,
-                                                status,
-                                                context,
-                                              );
-                                            },
-                                          );
-                                        },
-                                      );
-                                    }
-                                }
+                        return ListView.builder(
+                          itemCount: consultationRequests.length,
+                          itemBuilder: (ctx, index) {
+                            return ItemBookingRequest(
+                              requestModel: consultationRequests[index],
+                              onItemClick: () {},
+                              onItemAction: (status, id) {
+                                _handleDecisionButtonClick(
+                                  id,
+                                  status,
+                                  context,
+                                );
                               },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                } else if (provider.consultationPricingModel == null) {
-                  return Column(
-                    children: [
-                      5.height,
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const Center(
-                                child: Text(
-                                  'It seems empty here. Add packages so the\ncustomers can book appointments with you.',
-                                  textAlign: TextAlign.center,
-                                  style: AppTextStyles.bodyStyleMedium,
-                                ),
-                              ),
-                              20.height,
-                              AppFilledButton(
-                                onPress: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    ConsultationPricingScreen.routeName,
-                                  );
-                                },
-                                title: 'Add Packages',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                } else {
-                  return const SizedBox.shrink();
-                }
-              },
+                            );
+                          },
+                        );
+                    }
+                  },
+                ),
+              ),
             ),
           ),
         ],

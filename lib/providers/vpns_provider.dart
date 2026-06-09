@@ -15,7 +15,7 @@ class VPNSProvider extends ChangeNotifier {
 
       // print("response -> $res");
 
-      final list = const CsvToListConverter().convert(csvString);
+      final list = csv.decode(csvString);
       //print("list size ${list.length}");
       print('csvString is -> ${list.length}');
       final header = list[0];

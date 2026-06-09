@@ -1,24 +1,42 @@
 import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:horti_vige/ui/dialogs/waiting_dialog.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
-import 'package:horti_vige/ui/utils/styles/text_styles.dart';
+
+/// Short overlay toast (no [Hero] / route conflicts). Use from anywhere.
+void showAppToast(
+  String message, {
+  Color? backgroundColor,
+  Color? textColor,
+  Toast toastLength = Toast.LENGTH_SHORT,
+  ToastGravity gravity = ToastGravity.BOTTOM,
+}) {
+  Fluttertoast.showToast(
+    msg: message,
+    toastLength: toastLength,
+    gravity: gravity,
+    backgroundColor: backgroundColor ?? AppColors.colorBlack,
+    textColor: textColor ?? AppColors.colorWhite,
+    fontSize: 14,
+  );
+}
 
 extension Logger on Object? {
   void log() {
     if (this == null) {
-      dev.log('HORTIVISE: null');
+      dev.log('EBOOKING: null');
       return;
     }
-    dev.log('HORTIVISE: $this');
+    dev.log('EBOOKING: $this');
   }
 
   void logError() {
     if (this == null) {
-      dev.log('HORTIVISE: null');
+      dev.log('EBOOKING: null');
       return;
     }
-    dev.log('HORTIVISE ERROR: $this');
+    dev.log('EBOOKING ERROR: $this');
   }
 }
 
@@ -81,41 +99,17 @@ extension DialogExtension on BuildContext {
     );
   }
 
+  /// Brief feedback via [Fluttertoast] (avoids SnackBar + [Hero] clashes on navigation).
+  /// [actionText] / [onAction] are not shown on toast; use a dialog if you need buttons.
   void showSnack({
     required String message,
     String? actionText,
     Function()? onAction,
     Color? actionTextColor,
+    String? snackHeroTag,
   }) {
     if (mounted) {
-      ScaffoldMessenger.of(this).clearSnackBars();
-      ScaffoldMessenger.of(this).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.colorBlack,
-          content: Text(
-            message,
-            style:
-                AppTextStyles.bodyStyleMedium.changeColor(AppColors.colorWhite),
-          ),
-          action: actionText != null
-              ? SnackBarAction(
-                  textColor: actionTextColor ?? AppColors.colorGreen,
-                  label: actionText,
-                  onPressed: onAction!,
-                )
-              : SnackBarAction(
-                  textColor: AppColors.colorGreen,
-                  label: 'Close',
-                  onPressed: () {
-                    try {
-                      ScaffoldMessenger.of(this).hideCurrentSnackBar();
-                    } catch (e) {
-                      e.logError();
-                    }
-                  },
-                ),
-        ),
-      );
+      showAppToast(message);
     }
   }
 

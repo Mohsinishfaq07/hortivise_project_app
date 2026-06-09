@@ -43,6 +43,11 @@ class _LoginScreenState extends State<LoginScreen>
   late UserProvider _userProvider;
   @override
   void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<UserProvider>().clearLoading();
+    });
     _textController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -69,7 +74,13 @@ class _LoginScreenState extends State<LoginScreen>
       CurvedAnimation(parent: _finalUiController, curve: Curves.easeInOut),
     );
     startAnimation();
-    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _finalUiController.dispose();
+    super.dispose();
   }
 
   @override
@@ -382,21 +393,25 @@ class _LoginScreenState extends State<LoginScreen>
   void startAnimation() {
     _textController.forward();
 
+    if (!mounted) return;
     setState(() {
       animationPlayed = true;
     });
     Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
       setState(() {
         _imageOpacity = 1.0;
       });
     });
     Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
       setState(() {
         _startExpansion = true;
         _imageOpacity = 0.0;
       });
 
       Future.delayed(const Duration(seconds: 4), () {
+        if (!mounted) return;
         setState(() {
           _textController.reverse();
           _startExpansion = false;
@@ -406,6 +421,7 @@ class _LoginScreenState extends State<LoginScreen>
         });
 
         Future.delayed(const Duration(seconds: 2), () {
+          if (!mounted) return;
           _finalUiController.forward();
         });
       });

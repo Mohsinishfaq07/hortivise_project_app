@@ -26,57 +26,56 @@ class _DemoAppHomeState extends State<DemoAppHome> {
           camera: TrackOption.enabled(),
           microphone: TrackOption.enabled(),
         ),
-        callContentBuilder: (
-          context,
-          call,
-          callState,
-        ) {
+        callContentWidgetBuilder: (context, call) {
           return StreamCallContent(
             call: call,
-            callState: callState,
             layoutMode: ParticipantLayoutMode.spotlight,
-            callAppBarBuilder: (context, call, callState) {
+            callAppBarWidgetBuilder: (context, call) {
               return const PreferredSize(
                 preferredSize: Size.zero,
                 child: SizedBox(),
               );
             },
-            callControlsBuilder: (
-              context,
-              call,
-              callState,
-            ) {
-              final localParticipant = callState.localParticipant!;
-              return StreamCallControls(
-                elevation: 0,
-                borderRadius: BorderRadius.zero,
-                backgroundColor: Colors.transparent,
-                options: [
-                  ToggleMicrophoneOption(
-                    call: call,
-                    localParticipant: localParticipant,
-                    disabledMicrophoneIconColor: AppColors.colorGreen,
-                  ),
-                  ToggleCameraOption(
-                    call: call,
-                    localParticipant: localParticipant,
-                    enabledCameraBackgroundColor: AppColors.colorGreen,
-                    enabledCameraIconColor: AppColors.colorWhite,
-                  ),
-                  CallControlOption(
-                    icon: const Icon(Icons.chat),
-                    onPressed: () {
-                      // Open your chat window
-                    },
-                    iconColor: AppColors.colorGreen,
-                  ),
-                  LeaveCallOption(
-                    call: call,
-                    onLeaveCallTap: () {
-                      call.leave();
-                    },
-                  ),
-                ],
+            callControlsWidgetBuilder: (context, call) {
+              return PartialCallStateBuilder<CallParticipantState?>(
+                call: call,
+                selector: (state) => state.localParticipant,
+                builder: (context, localParticipant) {
+                  if (localParticipant == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return StreamCallControls(
+                    elevation: 0,
+                    borderRadius: BorderRadius.zero,
+                    backgroundColor: Colors.transparent,
+                    options: [
+                      ToggleMicrophoneOption(
+                        call: call,
+                        localParticipant: localParticipant,
+                        disabledMicrophoneIconColor: AppColors.colorGreen,
+                      ),
+                      ToggleCameraOption(
+                        call: call,
+                        localParticipant: localParticipant,
+                        enabledCameraBackgroundColor: AppColors.colorGreen,
+                        enabledCameraIconColor: AppColors.colorWhite,
+                      ),
+                      CallControlOption(
+                        icon: const Icon(Icons.chat),
+                        onPressed: () {
+                          // Open your chat window
+                        },
+                        iconColor: AppColors.colorGreen,
+                      ),
+                      LeaveCallOption(
+                        call: call,
+                        onLeaveCallTap: () {
+                          call.leave();
+                        },
+                      ),
+                    ],
+                  );
+                },
               );
             },
           );

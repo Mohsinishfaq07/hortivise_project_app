@@ -1,43 +1,26 @@
 {
   "project_info": {
-    "project_number": "157879166051",
-    "project_id": "hortivige",
-    "storage_bucket": "hortivige.appspot.com"
+    "project_number": "655797843910",
+    "project_id": "esyncslot",
+    "storage_bucket": "esyncslot.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:157879166051:android:e8bd9320dad4a8c5280456",
+        "mobilesdk_app_id": "1:655797843910:android:b1bc0f76274088fe0fa4c7",
         "android_client_info": {
           "package_name": "com.minimalmouse.hortivige.horti_vige"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "157879166051-eld35ab6mmg1m9683c7vru9qf6bt9ei5.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAU4QQmln4BYNl6Vs-kOdHLmlvimI5wfGw"
+          "current_key": "AIzaSyBz_Xdshfb6bcPxdfP2C9xD3N_swBb9SWo"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "157879166051-eld35ab6mmg1m9683c7vru9qf6bt9ei5.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "157879166051-jk3sb9iilpktefa8km08h04sh7nulnbd.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.minimalmouse.hortivige.hortiVige"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

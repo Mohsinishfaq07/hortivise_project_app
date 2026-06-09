@@ -9,6 +9,7 @@ import 'package:horti_vige/ui/widgets/app_dropdown.dart';
 import 'package:horti_vige/ui/widgets/app_filled_button.dart';
 import 'package:horti_vige/ui/widgets/app_outlined_button.dart';
 import 'package:horti_vige/ui/widgets/app_text_input.dart';
+import 'package:horti_vige/ui/widgets/app_nav_drawer.dart';
 import 'package:provider/provider.dart';
 
 class BecomeConsultantScreen extends StatefulWidget {
@@ -245,12 +246,22 @@ class _BecomeConsultantScreenState extends State<BecomeConsultantScreen> {
         password: _consultantPassword,
       )
           .then((value) {
-        Navigator.pop(context);
-        context.showSnack(message: value);
-        Navigator.pop(context);
+        if (!mounted) return;
+        Navigator.pop(context); // progress dialog
+        if (value == 'Request submitted successfully!') {
+          // Persisted user type is SPECIALIST — open consultant shell directly.
+          // Avoid snackbar + pop here (duplicate SnackBar Hero during transition).
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            ZoomDrawerScreen.routeName,
+            (_) => false,
+          );
+        } else if (mounted) {
+          context.showSnack(message: value);
+        }
       }).catchError((e) {
+        if (!mounted) return;
         Navigator.pop(context);
-        context.showSnack(message: '$e');
+        if (mounted) context.showSnack(message: '$e');
       });
     }
   }

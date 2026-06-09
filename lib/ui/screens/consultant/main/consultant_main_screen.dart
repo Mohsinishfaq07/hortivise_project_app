@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:horti_vige/Services/consultant_side_service.dart';
 
 import 'package:horti_vige/ui/resources/app_icons_icons.dart';
 import 'package:horti_vige/ui/screens/consultant/main/pages/consultant_home_page.dart';
-import 'package:horti_vige/ui/screens/user/main/pages/my_wallet.dart';
 import 'package:horti_vige/ui/screens/user/main/pages/user_blogs_page.dart';
 import 'package:horti_vige/ui/screens/user/main/pages/user_consultants_page.dart';
 import 'package:horti_vige/ui/screens/user/main/pages/user_notifications_page.dart';
@@ -23,7 +21,6 @@ class _ConsultantMainScreenState extends State<ConsultantMainScreen> {
   final _pages = const [
     ConsultantHomePage(),
     UserConsultantsPage(),
-    MyWallet(),
     UserNotificationsPage(),
     UserBlogsPage(),
   ];
@@ -95,11 +92,6 @@ class _ConsultantMainScreenState extends State<ConsultantMainScreen> {
                 icon: Icon(AppIcons.consultations_outlined),
                 activeIcon: Icon(AppIcons.consultations_filled),
                 label: 'Consultation',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(AppIcons.wallet_outlined),
-                activeIcon: Icon(AppIcons.wallet_filled),
-                label: 'Wallet',
               ),
               BottomNavigationBarItem(
                 icon: Icon(AppIcons.notifications_outlined),

@@ -1,10 +1,10 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:horti_vige/data/enums/consultation_status.dart';
 import 'package:horti_vige/data/enums/days.dart';
 import 'package:horti_vige/data/enums/package_type.dart';
 import 'package:horti_vige/data/models/consultation/consultation_model.dart';
 import 'package:horti_vige/data/models/package/package_model.dart';
+import 'package:horti_vige/data/repositories/user_repository.dart';
 import 'package:horti_vige/providers/consultations_provider.dart';
 import 'package:horti_vige/ui/dialogs/waiting_dialog.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
@@ -36,12 +36,10 @@ class _UpdateConsultationBottomDialogState
   int selectedMonth = DateTime.now().month;
   int selectedHour = DateTime.now().hour;
   int selectedMinute = DateTime.now().minute;
-  late final selectableDays = widget.consultation.specialist.availability!.days
-      .map((e) => e.day.name.substring(0, 3).capitalizeFirstLetter())
-      .toList();
   List<String> availableTimes = [];
   int selected = 0;
   PackageModel? selectedPkg;
+  bool _hydrating = true;
 
   @override
   void initState() {
@@ -53,33 +51,105 @@ class _UpdateConsultationBottomDialogState
     selectedMonth = dateTime.month;
     selectedHour = dateTime.hour;
     selectedMinute = dateTime.minute;
-    try {
-      if (AppDateUtils.getNext30DaysOfYearWithMonth().values.isEmpty) return;
-      final data =
-          AppDateUtils.getNext30DaysOfYearWithMonth().values.firstWhereOrNull(
-                (ele) => selectableDays.any((day) => day == ele.split(',')[0]),
-              );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _hydrateSpecialistAndInitChips();
+    });
+  }
 
-      if (data == null) return;
+  /// Uses calendar date — not weekday abbrev strings — so it works with any locale.
+  bool _consultantAvailableOnDate(DateTime date) {
+    final av = widget.consultation.specialist.availability;
+    if (av == null || av.days.isEmpty) return false;
+    final dayEnum = DayEnum.values[date.weekday - 1];
+    return av.days.any((d) => d.day == dayEnum);
+  }
 
-      final day = data.split(',')[0].toLowerCase();
-      final dayEum = DayEnum.values.firstWhere(
-        (element) => element.name.substring(0, 3) == day,
-      );
-      _selectTimes(dayEum);
-
-      final index =
-          AppDateUtils.getNext30DaysOfYearWithMonth().values.toList().indexOf(
-                data,
-              );
-      final dayIndex = int.parse(
-        AppDateUtils.getNext30DaysOfYearWithMonth().keys.toList()[index],
-      );
-      selected = index;
-      selectedDay = dayIndex;
-    } catch (e) {
-      e.logError();
+  Future<void> _hydrateSpecialistAndInitChips() async {
+    if (widget.consultation.specialist.availability == null) {
+      try {
+        final u =
+            await UserRepository.get(widget.consultation.specialist.email);
+        if (!mounted) return;
+        if (u != null && u.availability != null) {
+          widget.consultation.specialist = u;
+        }
+      } catch (e) {
+        e.logError();
+      }
     }
+    if (!mounted) return;
+    if (widget.consultation.specialist.availability == null) {
+      setState(() => _hydrating = false);
+      return;
+    }
+
+    final map = AppDateUtils.getNext30DaysOfYearWithMonth();
+    if (map.isEmpty) {
+      setState(() => _hydrating = false);
+      return;
+    }
+
+    final start = widget.consultation.startTime;
+    final y = DateTime.now().year;
+    final entries = map.entries.toList();
+
+    // Date chip matching current booking (month/day in this year).
+    int? chipIndex;
+    for (var i = 0; i < entries.length; i++) {
+      final e = entries[i];
+      final dayNum = int.parse(e.key);
+      final month = AppDateUtils.getIntMonthFromString(
+        e.value.split(',')[1].trim(),
+      );
+      if (dayNum == start.day && month == start.month) {
+        chipIndex = i;
+        break;
+      }
+    }
+    // Booking not in remaining-month window: first day consultant is available.
+    if (chipIndex == null) {
+      for (var i = 0; i < entries.length; i++) {
+        final e = entries[i];
+        final d = int.parse(e.key);
+        final m = AppDateUtils.getIntMonthFromString(
+          e.value.split(',')[1].trim(),
+        );
+        final dt = DateTime(y, m, d);
+        if (_consultantAvailableOnDate(dt)) {
+          chipIndex = i;
+          break;
+        }
+      }
+    }
+    chipIndex ??= 0;
+
+    final chosen = entries[chipIndex];
+    final slotDate = DateTime(
+      y,
+      AppDateUtils.getIntMonthFromString(chosen.value.split(',')[1].trim()),
+      int.parse(chosen.key),
+    );
+    _selectTimes(DayEnum.values[slotDate.weekday - 1]);
+
+    selected = chipIndex;
+    selectedDay = int.parse(chosen.key);
+    selectedMonth = AppDateUtils.getIntMonthFromString(
+      chosen.value.split(',')[1].trim(),
+    );
+
+    setState(() => _hydrating = false);
+  }
+
+  List<bool> _selectableDateMask() {
+    final map = AppDateUtils.getNext30DaysOfYearWithMonth();
+    final y = DateTime.now().year;
+    return map.entries.map((e) {
+      final d = int.parse(e.key);
+      final m = AppDateUtils.getIntMonthFromString(
+        e.value.split(',')[1].trim(),
+      );
+      return _consultantAvailableOnDate(DateTime(y, m, d));
+    }).toList();
   }
 
   @override
@@ -110,36 +180,27 @@ class _UpdateConsultationBottomDialogState
                   chips:
                       AppDateUtils.getNext30DaysOfYearWithMonth().keys.toList(),
                   onSelected: (index) {
-                    final dayIndex = int.parse(
-                      AppDateUtils.getNext30DaysOfYearWithMonth()
-                          .keys
-                          .toList()[index],
-                    );
-                    final values = AppDateUtils.getNext30DaysOfYearWithMonth()
-                        .values
-                        .toList();
+                    final map = AppDateUtils.getNext30DaysOfYearWithMonth();
+                    final keys = map.keys.toList();
+                    final values = map.values.toList();
+                    final dayIndex = int.parse(keys[index]);
                     final month = AppDateUtils.getIntMonthFromString(
                       values[index].split(',')[1].trim(),
                     );
-
+                    final y = DateTime.now().year;
                     selectedDay = dayIndex;
                     selectedMonth = month;
-                    final day = values[index].split(',')[0].toLowerCase();
-                    final dayEum = DayEnum.values.firstWhere(
-                      (element) => element.name.substring(0, 3) == day,
-                    );
-                    _selectTimes(dayEum);
+                    final dt = DateTime(y, month, dayIndex);
+                    _selectTimes(DayEnum.values[dt.weekday - 1]);
                   },
                   selected: selected,
                   cornerRadius: 2,
-                  selectAbleList: AppDateUtils.getNext30DaysOfYearWithMonth()
-                      .values
-                      .map(
-                        (ele) => selectableDays.any(
-                          (day) => day == ele.split(',')[0],
-                        ),
-                      )
-                      .toList(),
+                  selectAbleList: _hydrating
+                      ? List<bool>.filled(
+                          AppDateUtils.getNext30DaysOfYearWithMonth().length,
+                          true,
+                        )
+                      : _selectableDateMask(),
                   selectedChipColor: AppColors.appGreenMaterial,
                   selectedLabelColor: AppColors.colorWhite,
                   unSelectedLabelColor: AppColors.colorGray,
@@ -151,10 +212,26 @@ class _UpdateConsultationBottomDialogState
                 ),
                 25.height,
                 Text(
-                  'Select a Time',
+                  _hydrating
+                      ? 'Loading available hours…'
+                      : availableTimes.isEmpty
+                          ? 'No slots for this day'
+                          : 'Select a Time',
                   style: AppTextStyles.titleStyle.changeSize(14),
                 ),
                 7.height,
+                if (_hydrating)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                else
                 AppHorizontalChoiceChips(
                   chips: availableTimes,
                   defaultSelection: const [],
@@ -251,7 +328,10 @@ class _UpdateConsultationBottomDialogState
   }
 
   void _selectTimes(DayEnum day) {
-    final days = widget.consultation.specialist.availability!.days;
+    final availability = widget.consultation.specialist.availability;
+    if (availability == null) return;
+    final days = availability.days;
+    if (day.index >= days.length) return;
     final from = days[day.index].from;
     final to = days[day.index].to;
     availableTimes = [];

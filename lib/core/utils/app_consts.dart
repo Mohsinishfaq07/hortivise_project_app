@@ -22,6 +22,14 @@ class Constants {
   static const kToken =
       '007eJxTYKhfp+bBJMf8yrHTuurmPg+mHs1Pi5b5zz64UrHQIPFhVIgCg7m5QWpKYpqhpaWRoYmRhaVlokFaamJiqkGKmaFZcorBx1zdtIZARoY/XG1MjAwQCOJzMmTkF5VklmUWpzIwAABh9iA6';
 
+  /// Start/end of a **full calendar day** using hourly slots (00:00 → 23:00).
+  /// Booking code iterates hours `fromHour`…`toHour` inclusive, so this yields
+  /// 24 bookable hour starts. Use with [getTimesString] labels "12:00 AM" … "11:00 PM".
+  static const TimeOfDay availabilityFullDayFrom =
+      TimeOfDay(hour: 0, minute: 0);
+  static const TimeOfDay availabilityFullDayTo =
+      TimeOfDay(hour: 23, minute: 0);
+
   // Create a list of TimeOfDay for 24 hours with 12 hour format
 
   static List<AppTimeOfDay> getTimes() {
@@ -181,20 +189,6 @@ class Constants {
   static const fromUserDetails = 'fromUserDetails';
 
   static const blogModel = 'BlogModel';
-
-  // old account keys
-  // static const kStripePublishKey =
-  //     'pk_test_51JsYwVJo0i9TcQEH7Vuj26hblM9vrZPGhK26ITZklHsBLpRgHIMz633hJsAEFaHo4CqKUpjMiVnRHSWnAT441R6N00DI0JCLkq';
-  // static const kSecretKey =
-  //     'sk_test_51JsYwVJo0i9TcQEHTCUOHytAX84Rd8QbnRBrTSmvAPaKkQmSxBqm9ARIVwR7kwJI1SbCuWp2uwb3KpjapdWXz9ff00AloPFG3a';
-
-  // account 1  miriah.spiers@icloud.com
-
-  //
-  static const kStripePublishKey =
-      'pk_test_51QG6a2ELpHSTTuqJLq6NHoEl7FdFXwhIaPWW7BqFL4GHHNTwISKcSslUrbJbjBoU6HDQTuKj8UvtMQbiH4hNzYeE003YPnH69y';
-  static const kSecretKey =
-      'sk_test_51QG6a2ELpHSTTuqJiywWHNZ80mmO5r3Zhe27TIKS4yB4Ye7o2KHPuWiXAloMrfIyYdAQfkIoxo6aIYs2ddhUaIWC00Xoih7Rt9';
 }
 
 const String userAgreementData = """

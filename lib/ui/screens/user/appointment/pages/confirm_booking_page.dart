@@ -45,50 +45,9 @@ class _ConfirmBookingPageState extends State<ConfirmBookingPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Payment Method',
+              'Booking details',
               style: AppTextStyles.bodyStyleMedium,
             ),
-            8.height,
-            // ListView.builder(
-            //   shrinkWrap: true,
-            //   itemCount: 1,
-            //   itemBuilder: (ctx, index) {
-            //     return ItemChoosePaymentMethod(
-            //       valueIndex: index,
-            //       selectedIndex: _selected,
-            //       onValueSelect: (selected) {
-            //         setState(() {
-            //           _selected = selected;
-            //         });
-            //       },
-            //     );
-            //   },
-            // ),
-            // 1.heightDivide,
-            // Row(
-            //   children: [
-            //     Radio(
-            //         value: 2,
-            //         groupValue: _selected,
-            //         onChanged: (selected) {
-            //           setState(() {
-            //             _selected = selected!;
-            //           });
-            //         }),
-            //     5.width,
-            //     TextButton(
-            //         style: TextButton.styleFrom(padding: 0.allPadding),
-            //         onPressed: () {
-            //           setState(() {
-            //             _selected = 2;
-            //           });
-            //         },
-            //         child: Text("Add New",
-            //             style: AppTextStyles.titleStyle
-            //                 .changeSize(12)
-            //                 .changeFontWeight(FontWeight.w600))),
-            //   ],
-            // ),
             8.height,
             Card(
               shape: RoundedRectangleBorder(

@@ -4,9 +4,15 @@
 import 'package:horti_vige/data/enums/specialist_category.dart';
 import 'package:json_annotation/json_annotation.dart';
 
-import 'package:horti_vige/data/services/stripe.dart';
-
 part 'specialist.g.dart';
+
+/// Specialist onboarding / account state (not payment-related).
+enum SpecialistStatus {
+  enabled,
+  incomplete,
+  pending,
+  restricted,
+}
 
 @JsonSerializable()
 class Specialist {
@@ -15,20 +21,15 @@ class Specialist {
     required this.email,
     required this.bio,
     required this.category,
-    required this.stripeId,
-    required this.isStripeActive,
-    this.status = StripeStatus.pending,
+    this.status = SpecialistStatus.pending,
     this.statusMessage = 'N/A',
   });
 
-  // Create empty factory
   factory Specialist.empty() {
     return Specialist(
       professionalName: '',
       email: '',
       bio: '',
-      isStripeActive: false,
-      stripeId: '',
       category: SpecialistCategory.values.first,
     );
   }
@@ -37,10 +38,8 @@ class Specialist {
       _$SpecialistFromJson(json);
   String professionalName;
   String email;
-  String stripeId;
   String bio;
-  bool isStripeActive;
-  StripeStatus status;
+  SpecialistStatus status;
   SpecialistCategory category;
   String statusMessage;
 

@@ -2,24 +2,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:horti_vige/data/enums/user_type.dart';
-import 'package:horti_vige/ui/screens/consultant/consultation_pricing/consultation_pricing_screen.dart';
 import 'package:horti_vige/ui/widgets/exit_bottom_sheet.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import 'package:horti_vige/data/models/user/user_model.dart';
 import 'package:horti_vige/generated/assets.dart';
+import 'package:horti_vige/core/exceptions/app_exception.dart';
 import 'package:horti_vige/providers/user_provider.dart';
 import 'package:horti_vige/ui/dialogs/pick_image_dialog.dart';
 import 'package:horti_vige/ui/dialogs/waiting_dialog.dart';
 import 'package:horti_vige/ui/screens/auth/change_password_screen.dart';
-import 'package:horti_vige/ui/screens/consultant/edit_availability_screen.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/ui/widgets/app_filled_button.dart';
 import 'package:horti_vige/ui/widgets/app_nav_drawer.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 
 TextEditingController bioController = TextEditingController(text: '');
 
@@ -65,12 +64,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       userName: _nameController.text.trim(),
       email: _emailController.text.trim(),
     );
-    await Provider.of<UserProvider>(context, listen: false)
-        .updateUser(model: user);
-
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, ZoomDrawerScreen.routeName);
-    //  Navigator.pop(context);
+    try {
+      await Provider.of<UserProvider>(context, listen: false)
+          .updateUser(model: user);
+      if (!mounted) return;
+      Navigator.pop(context);
+      Navigator.pushReplacementNamed(context, ZoomDrawerScreen.routeName);
+    } on AppException catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      context.showSnack(message: e.message);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      context.showSnack(message: e.toString());
+    }
   }
 
   void fetchUserData(String docId) async {
@@ -160,12 +168,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 backgroundColor: AppColors.colorGreen,
                                 child: CircleAvatar(
                                   radius: 35,
+                                  backgroundColor: AppColors.colorGrayBg,
                                   backgroundImage:
-                                      currentUser.profileUrl.startsWith('http')
+                                      UserProfileImage.hasRemote(
+                                              currentUser.profileUrl)
                                           ? NetworkImage(currentUser.profileUrl)
                                           : null,
                                   child: Stack(
                                     children: [
+                                      if (!UserProfileImage.hasRemote(
+                                          currentUser.profileUrl))
+                                        Center(
+                                          child: Icon(
+                                            Icons.person,
+                                            size: 40,
+                                            color: AppColors.colorGray,
+                                          ),
+                                        ),
                                       Align(
                                         alignment: Alignment.bottomRight,
                                         child: CircleAvatar(
@@ -211,7 +230,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         .changeFontWeight(FontWeight.bold),
                                   ),
                                   Text(
-                                    'Hortivise ${currentUser.type.name.toLowerCase().capitalizeFirstLetter()}',
+                                    'ebooking ${currentUser.type.name.toLowerCase().capitalizeFirstLetter()}',
                                     style: AppTextStyles.bodyStyle
                                         .changeColor(AppColors.colorGray)
                                         .changeSize(10),
@@ -330,42 +349,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         //   ),
                         //   trailing: Switch(value: true, onChanged: (b) {}),
                         // ),
-                        if (currentUser.type != UserType.CUSTOMER)
-                          Column(
-                            children: [
-                              // TODO: Vacation Mode
-                              // ListTile(
-                              //   title: Text(
-                              //     'Vacation Mode',
-                              //     style: AppTextStyles.titleStyle
-                              //         .changeSize(16)
-                              //         .changeFontWeight(FontWeight.bold),
-                              //   ),
-                              //   trailing: Switch(value: false, onChanged: (b) {}),
-                              // ),
-                              buildCustomButton(
-                                context,
-                                'Availability Settings',
-                                () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    EditAvailabilityScreen.routeName,
-                                  );
-                                },
-                              ),
-                              16.height,
-                              buildCustomButton(
-                                context,
-                                'Consultation Pricing',
-                                () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    ConsultationPricingScreen.routeName,
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
                       ],
                     ),
                   ),
@@ -445,49 +428,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  Widget buildCustomButton(
-    BuildContext context,
-    String title,
-    VoidCallback onTap,
-  ) {
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.9,
-      height: 60,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.colorGreen, // Border color as in the image
-          width: 1.5,
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 16),
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color:
-                      AppColors.colorGreen, // Text color similar to the image
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(
-                Icons.arrow_forward_ios,
-                color: AppColors.colorGreen, // Icon color matching the text
-                size: 20,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

@@ -56,21 +56,20 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAU4QQmln4BYNl6Vs-kOdHLmlvimI5wfGw',
-    appId: '1:157879166051:android:e8bd9320dad4a8c5280456',
-    messagingSenderId: '157879166051',
-    projectId: 'hortivige',
-    storageBucket: 'hortivige.appspot.com',
+    apiKey: 'AIzaSyBz_Xdshfb6bcPxdfP2C9xD3N_swBb9SWo',
+    appId: '1:655797843910:android:b1bc0f76274088fe0fa4c7',
+    messagingSenderId: '655797843910',
+    projectId: 'esyncslot',
+    storageBucket: 'esyncslot.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDR8LubOQCRg6crPbXgZ8zLU-36F1yQjKo',
-    appId: '1:157879166051:ios:a3d84115fc739371280456',
-    messagingSenderId: '157879166051',
-    projectId: 'hortivige',
-    storageBucket: 'hortivige.appspot.com',
-    iosClientId:
-        '157879166051-jk3sb9iilpktefa8km08h04sh7nulnbd.apps.googleusercontent.com',
+    apiKey: 'AIzaSyDvx-qA1yf9M7g946DjJZE58_lTFvdFZR0',
+    appId: '1:655797843910:ios:72920e64b501c9cf0fa4c7',
+    messagingSenderId: '655797843910',
+    projectId: 'esyncslot',
+    storageBucket: 'esyncslot.firebasestorage.app',
     iosBundleId: 'com.minimalmouse.hortivige.hortiVige',
   );
+
 }

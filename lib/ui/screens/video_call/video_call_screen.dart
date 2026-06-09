@@ -51,9 +51,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       debugPrint('current video user id: $currentUserId');
       debugPrint('current video user mail:${currentUser.email}');
       debugPrint('other video user mail:${otherUser.email}');
-      await VideoService.instance
+      final joined = await VideoService.instance
           .init(currentUser, widget.consultationModel.id);
+      if (!mounted) return;
+      if (!joined) {
+        context.showSnack(
+          message:
+              'Video call connect nahi ho saka. VPN, proxy, ya HTTPS filter '
+              '(AdGuard / Charles) band karke mobile data ya doosri Wi‑Fi try karein. '
+              'Logs: TLS / certificate error.',
+        );
+        Navigator.of(context).maybePop();
+        return;
+      }
       await setTimer(widget.consultationModel);
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
@@ -85,93 +97,56 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                     child: CircularProgressIndicator(),
                   )
                 : StreamCallContainer(
-                    callContentBuilder: (context, call, callState) {
+                    call: VideoService.instance.call,
+                    callContentWidgetBuilder: (context, call) {
                       return StreamCallContent(
-                        callAppBarBuilder: (context, call, callState) {
+                        call: call,
+                        callAppBarWidgetBuilder: (context, call) {
                           return const PreferredSize(
-                            preferredSize:
-                                Size.fromHeight(0), // here the desired height
+                            preferredSize: Size.fromHeight(0),
                             child: SizedBox(),
                           );
                         },
-                        call: call,
-                        callState: callState,
-                        callControlsBuilder: (context, call, callState) {
+                        callControlsWidgetBuilder: (context, call) {
                           return const SizedBox();
-                          // return StreamCallControls(
-                          //   borderRadius: BorderRadius.zero,
-                          //   backgroundColor: Colors.transparent,
-                          //   options: [
-                          //     // Custom call option toggles the chat while on a call.
-                          //     CallControlOption(
-                          //         icon: const Icon(Icons.chat_outlined),
-                          //         onPressed: () {}),
-                          //     ToggleMicrophoneOption(
-                          //       call: call,
-                          //       localParticipant: localParticipant,
-                          //     ),
-                          //     ToggleCameraOption(
-                          //       call: call,
-                          //       localParticipant: localParticipant,
-                          //     ),
-                          //     LeaveCallOption(
-                          //       call: call,
-                          //       onLeaveCallTap: () => call.leave(),
-                          //     ),
-                          //   ],
-                          // );
                         },
-                        callParticipantsBuilder: (context, call, callState) {
-                          return Stack(
-                            children: [
-                              receivingStreamWidget(
-                                call,
-                                callState.otherParticipants.isNotEmpty
-                                    ? callState.otherParticipants.last
-                                    : callState.localParticipant!,
-                              ),
-                              if (callState.callParticipants.length != 1)
-                                sendingStreamWidget(
-                                  context,
-                                  call,
-                                  callState.localParticipant!,
-                                ),
-                              streamingMenuWidget(
-                                context,
-                                call,
-                                callState.localParticipant!,
-                              ),
-                              streamTimerWidget(
-                                context,
-                                call,
-                                callState.localParticipant!,
-                              ),
-                            ],
+                        callParticipantsWidgetBuilder: (context, call) {
+                          return StreamBuilder<CallState>(
+                            stream: call.state.asStream(),
+                            initialData: call.state.value,
+                            builder: (context, snapshot) {
+                              final callState = snapshot.requireData;
+                              return Stack(
+                                children: [
+                                  receivingStreamWidget(
+                                    call,
+                                    callState.otherParticipants.isNotEmpty
+                                        ? callState.otherParticipants.last
+                                        : callState.localParticipant!,
+                                  ),
+                                  if (callState.callParticipants.length != 1)
+                                    sendingStreamWidget(
+                                      context,
+                                      call,
+                                      callState.localParticipant!,
+                                    ),
+                                  streamingMenuWidget(
+                                    context,
+                                    call,
+                                    callState.localParticipant!,
+                                  ),
+                                  streamTimerWidget(
+                                    context,
+                                    call,
+                                    callState.localParticipant!,
+                                  ),
+                                ],
+                              );
+                            },
                           );
                         },
                       );
-                      // return SizedBox(
-                      //   width: context.width,
-                      //   height: context.safeHeight,
-                      //   child: Stack(
-                      //     children: [
-                      //       receivingStreamWidget(),
-                      //       sendingStreamWidget(
-                      //         context,
-                      //         call,
-                      //         callState.localParticipant!,
-                      //       ),
-                      //       streamingMenuWidget(
-                      //         context,
-                      //         call,
-                      //         callState.localParticipant!,
-                      //       ),
-                      //       //   timerWidget(),
-                      //     ],
-                      //   ),
-                      // );
                     },
-                    call: VideoService.instance.call,
                   ),
           ),
         ),
@@ -422,12 +397,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       apiKey,
       user: User.regular(userId: userId, name: 'Test User'),
       userToken: userToken,
-      options: const StreamVideoOptions(
+      options: StreamVideoOptions(
         logPriority: Priority.info,
       ),
     );
 
-    call = client.makeCall(callType: StreamCallType(), id: '345');
+    call = client.makeCall(
+      callType: StreamCallType.defaultType(),
+      id: '345',
+    );
     await call.join();
     // call.
     setState(() {

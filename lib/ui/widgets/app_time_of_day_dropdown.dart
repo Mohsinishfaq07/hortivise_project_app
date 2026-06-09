@@ -173,11 +173,6 @@ class _AppTimeOfDayDropdownInputState extends State<AppTimeOfDayDropdownInput> {
 
   Widget errorToolTip() {
     return SuperTooltip(
-      hasShadow: false,
-      backgroundColor: AppColors.colorRed,
-      borderColor: AppColors.appGreenMaterial,
-      borderRadius: 8,
-      elevation: 1,
       content: Text(
         widget.errorText ?? 'Something went wrong...',
         style: AppTextStyles.bodyStyleMedium.changeColor(AppColors.colorWhite),

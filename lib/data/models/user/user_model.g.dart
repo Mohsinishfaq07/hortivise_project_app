@@ -18,7 +18,6 @@ UserModel _$UserModelFromJson(Map<String, dynamic> json) => UserModel(
       specialist: json['specialist'] == null
           ? null
           : Specialist.fromJson(json['specialist'] as Map<String, dynamic>),
-      stripeId: json['stripeId'] as String,
       balance: (json['balance'] as num?)?.toDouble() ?? 0,
       availability: json['availability'] == null
           ? null
@@ -40,7 +39,6 @@ Map<String, dynamic> _$UserModelToJson(UserModel instance) => <String, dynamic>{
       'specialist': instance.specialist?.toJson(),
       'isAuthenticated': instance.isAuthenticated,
       'uId': instance.uId,
-      'stripeId': instance.stripeId,
       'balance': instance.balance,
       'availability': instance.availability?.toJson(),
       'fcmToken': instance.fcmToken,

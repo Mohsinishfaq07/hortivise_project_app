@@ -5,6 +5,7 @@ import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/core/utils/app_date_utils.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 
 class ItemNotification extends StatelessWidget {
   const ItemNotification({
@@ -34,13 +35,11 @@ class ItemNotification extends StatelessWidget {
               size: 8,
               color: AppColors.colorWhite,
             ),
-            child: CircleAvatar(
+            child: UserProfileAvatar(
+              imageUrl: notification.iconImageUrl.isNotEmpty
+                  ? notification.iconImageUrl
+                  : notification.generatedBy.profileUrl,
               radius: 22,
-              backgroundImage: NetworkImage(
-                notification.iconImageUrl.isNotEmpty
-                    ? notification.iconImageUrl
-                    : notification.generatedBy.profileUrl,
-              ),
             ),
           ),
           title: Text(

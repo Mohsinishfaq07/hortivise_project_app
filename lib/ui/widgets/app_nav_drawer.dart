@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
 import 'package:horti_vige/data/enums/user_type.dart';
-import 'package:horti_vige/data/services/auth_service.dart';
 import 'package:horti_vige/ui/screens/auth/login_screen.dart';
-import 'package:horti_vige/ui/widgets/exit_bottom_sheet.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:horti_vige/data/models/user/user_model.dart';
-import 'package:horti_vige/data/services/stripe.dart';
+import 'package:horti_vige/providers/consultations_provider.dart';
 import 'package:horti_vige/providers/user_provider.dart';
 import 'package:horti_vige/ui/resources/app_icons_icons.dart';
-import 'package:horti_vige/ui/screens/common/landing_screen.dart';
 import 'package:horti_vige/ui/screens/common/profile_screen.dart';
 import 'package:horti_vige/ui/screens/consultant/conversations.dart';
+import 'package:horti_vige/ui/screens/consultant/consultation_pricing/consultation_pricing_screen.dart';
+import 'package:horti_vige/ui/screens/consultant/edit_availability_screen.dart';
 import 'package:horti_vige/ui/screens/consultant/main/consultant_main_screen.dart';
 import 'package:horti_vige/ui/screens/user/main/user_main_screen.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 
 // Static menu items
 class MenuItems {
@@ -60,8 +59,6 @@ class _ZoomDrawerScreenState extends State<ZoomDrawerScreen> {
     return ZoomDrawer(
       controller: ZoomDrawerController(),
       menuScreen: AppNavDrawer(
-        user:
-            Provider.of<UserProvider>(context, listen: false).getCurrentUser(),
         currentItem: currentItem,
         onSelectItem: (item) {
           setState(() {
@@ -82,7 +79,7 @@ class _ZoomDrawerScreenState extends State<ZoomDrawerScreen> {
 
   Widget _getScreen() {
     final currentUser = context.read<UserProvider>().getCurrentUser();
-    if (currentUser == null) return const LandingScreen();
+    if (currentUser == null) return const LoginScreen();
 
     switch (currentItem) {
       case MenuItems.home:
@@ -105,35 +102,77 @@ class AppNavDrawer extends StatelessWidget {
     super.key,
     required this.currentItem,
     required this.onSelectItem,
-    required this.user,
   });
 
   final MenuItem currentItem;
   final Function(MenuItem) onSelectItem;
-  final UserModel? user;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.colorBeige,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 60),
-          _buildUserInfo(),
-          const SizedBox(height: 20),
-          ...MenuItems.all
-              .map((item) => _buildMenuItem(item, context))
-              .toList(),
-          // if (user?.specialist != null) _buildChatTile(context),
-          const Spacer(),
-          _buildFooter(context),
-        ],
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, _) {
+        final user = userProvider.getCurrentUser();
+        return Scaffold(
+          backgroundColor: AppColors.colorBeige,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 60),
+              _buildUserInfo(context, user),
+              const SizedBox(height: 20),
+              ...MenuItems.all.map((item) => _buildMenuItem(item, context)),
+              if (user?.type == UserType.SPECIALIST) ...[
+                _buildConsultantNavTile(
+                  context,
+                  title: 'Availability settings',
+                  icon: Icons.event_available_outlined,
+                  routeName: EditAvailabilityScreen.routeName,
+                ),
+                // _buildConsultantNavTile(
+                //   context,
+                //   title: 'Consultation pricing',
+                //   icon: Icons.request_quote_outlined,
+                //   routeName: ConsultationPricingScreen.routeName,
+                // ),
+              ],
+              const Spacer(),
+              _buildFooter(context),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildConsultantNavTile(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required String routeName,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        leading: Icon(
+          icon,
+          color: AppColors.colorGray,
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.colorGray,
+          ),
+        ),
+        onTap: () {
+          ZoomDrawer.of(context)?.close();
+          Navigator.of(context).pushNamed(routeName);
+        },
       ),
     );
   }
 
-  Widget _buildUserInfo() {
+  Widget _buildUserInfo(BuildContext context, UserModel? user) {
     String formatUserName(String? userName) {
       if (userName == null || userName.isEmpty) return 'N/A';
 
@@ -145,11 +184,9 @@ class AppNavDrawer extends StatelessWidget {
     }
 
     return ListTile(
-      leading: CircleAvatar(
+      leading: UserProfileAvatar(
+        imageUrl: user?.profileUrl ?? '',
         radius: 24,
-        backgroundImage: (user?.profileUrl.isNotEmpty ?? false)
-            ? NetworkImage(user!.profileUrl)
-            : null,
       ),
       title: Text(
         formatUserName(user?.userName),
@@ -166,6 +203,7 @@ class AppNavDrawer extends StatelessWidget {
       onTap: () => onSelectItem(MenuItems.profile),
     );
   }
+
 
   Widget _buildMenuItem(MenuItem item, context) {
     final isSelected = currentItem == item;
@@ -196,43 +234,25 @@ class AppNavDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildChatTile(BuildContext context) {
-    return ListTile(
-      onTap: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (context) => const Conversations())),
-      leading: const Icon(Icons.message),
-      title: const Text('Chats', style: AppTextStyles.bodyStyleMedium),
-    );
-  }
-
   Widget _buildFooter(BuildContext context) {
     return Column(
       children: [
-        if (user?.specialist != null) _buildStripeTile(),
         _buildLogoutTile(context),
       ],
     );
   }
 
-  Widget _buildStripeTile() {
+  Widget _buildLogoutTile(BuildContext context) {
     return ListTile(
       onTap: () async {
-        final url = StripeController.instance.getAccountUrl();
-        if (url != null && await canLaunchUrl(Uri.parse(url))) {
-          await launchUrl(Uri.parse(url));
-        }
-      },
-      leading: const Icon(Icons.attach_money_outlined),
-      title: const Text('My Stripe', style: AppTextStyles.bodyStyleMedium),
-    );
-  }
-
-  Widget _buildLogoutTile(context) {
-    return ListTile(
-      onTap: () {
-        AuthService().signOut();
-        Navigator.of(context)
-            .push(MaterialPageRoute(builder: (context) => const LoginScreen()));
+        await context.read<UserProvider>().logoutUser();
+        if (!context.mounted) return;
+        context.read<ConsultationProvider>().resetSpecialistBookingStream();
+        if (!context.mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          LoginScreen.routeName,
+          (_) => false,
+        );
       },
       leading: const Icon(Icons.logout),
       title: const Text('Logout', style: AppTextStyles.bodyStyleMedium),

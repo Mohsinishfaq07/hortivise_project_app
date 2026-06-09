@@ -38,7 +38,7 @@ class CongratsScreen extends StatelessWidget {
           Padding(
             padding: 12.horizontalPadding,
             child: const Text(
-              'You have been selected as a Horticultural Consultant. We have sent you your login credentials in your email. Please login to Hortivise and start making money and impact in the society',
+              'You have been selected as a Horticultural Consultant. We have sent you your login credentials in your email. Please login to ebooking and start making money and impact in the society',
               style: AppTextStyles.bodyStyle,
             ),
           ),

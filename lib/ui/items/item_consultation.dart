@@ -226,11 +226,11 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:horti_vige/constants.dart';
 import 'package:horti_vige/data/enums/consultation_status.dart';
 import 'package:horti_vige/data/models/consultation/consultation_model.dart';
-import 'package:horti_vige/providers/consultations_provider.dart';
 import 'package:horti_vige/ui/resources/app_icons_icons.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 import 'package:horti_vige/core/utils/app_date_utils.dart';
 import 'package:horti_vige/data/enums/package_type.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -274,12 +274,10 @@ class ItemConsultation extends StatelessWidget {
           child: Column(
             children: [
               ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(
-                    isCustomer
-                        ? consultation.specialist.profileUrl
-                        : consultation.customer.profileUrl,
-                  ),
+                leading: UserProfileAvatar(
+                  imageUrl: isCustomer
+                      ? consultation.specialist.profileUrl
+                      : consultation.customer.profileUrl,
                   radius: 24,
                 ),
                 title: Text(
@@ -459,7 +457,8 @@ class ItemConsultation extends StatelessWidget {
   }
 
   Future<String> localTimeGet() async {
-    String localTimeZone = await FlutterTimezone.getLocalTimezone();
+    String localTimeZone =
+        (await FlutterTimezone.getLocalTimezone()).identifier;
     return localTimeZone;
   }
 

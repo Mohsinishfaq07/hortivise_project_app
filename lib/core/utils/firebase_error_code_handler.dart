@@ -4,12 +4,14 @@ class FirebaseErrorCodeHandler {
   FirebaseErrorCodeHandler._();
 
   static FirebaseErrorCode mapErrorCode(String code) {
-    switch (code) {
+    switch (code.toLowerCase()) {
       case 'invalid-email':
         return FirebaseErrorCode.invalidEmail;
       case 'user-not-found':
         return FirebaseErrorCode.userNotFound;
       case 'wrong-password':
+      case 'invalid-credential':
+      case 'invalid-login-credentials':
         return FirebaseErrorCode.wrongPassword;
       case 'user-disabled':
         return FirebaseErrorCode.userDisabled;
@@ -55,7 +57,7 @@ class FirebaseErrorCodeHandler {
       case FirebaseErrorCode.userNotFound:
         return 'This email is not registered';
       case FirebaseErrorCode.wrongPassword:
-        return 'The password is incorrect.';
+        return 'Email or password is incorrect. Reset password if you forgot it.';
       case FirebaseErrorCode.userDisabled:
         return 'The user has been disabled.';
       case FirebaseErrorCode.emailAlreadyInUse:

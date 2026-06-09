@@ -2,22 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CLIENT_ID</key>
-	<string>157879166051-jk3sb9iilpktefa8km08h04sh7nulnbd.apps.googleusercontent.com</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.157879166051-jk3sb9iilpktefa8km08h04sh7nulnbd</string>
 	<key>API_KEY</key>
-	<string>AIzaSyDR8LubOQCRg6crPbXgZ8zLU-36F1yQjKo</string>
+	<string>AIzaSyDvx-qA1yf9M7g946DjJZE58_lTFvdFZR0</string>
 	<key>GCM_SENDER_ID</key>
-	<string>157879166051</string>
+	<string>655797843910</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.minimalmouse.hortivige.hortiVige</string>
 	<key>PROJECT_ID</key>
-	<string>hortivige</string>
+	<string>esyncslot</string>
 	<key>STORAGE_BUCKET</key>
-	<string>hortivige.appspot.com</string>
+	<string>esyncslot.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -29,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:157879166051:ios:a3d84115fc739371280456</string>
+	<string>1:655797843910:ios:72920e64b501c9cf0fa4c7</string>
 </dict>
 </plist>

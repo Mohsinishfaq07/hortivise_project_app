@@ -62,6 +62,19 @@ class _AppDropdownInputState<T> extends State<AppDropdownInput<T>> {
   }
 
   @override
+  void didUpdateWidget(AppDropdownInput<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value) {
+      final next = widget.value;
+      if (next == null || widget.options.contains(next)) {
+        setState(() {
+          _currentValue = next;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -177,11 +190,13 @@ class _AppDropdownInputState<T> extends State<AppDropdownInput<T>> {
 
   Widget errorToolTip() {
     return SuperTooltip(
-      hasShadow: false,
-      backgroundColor: AppColors.colorRed,
-      borderColor: AppColors.appGreenMaterial,
-      borderRadius: 8,
-      elevation: 1,
+      style: TooltipStyle(
+        hasShadow: false,
+        backgroundColor: AppColors.colorRed,
+        borderColor: AppColors.appGreenMaterial,
+        borderRadius: 8,
+        elevation: 1,
+      ),
       content: Text(
         widget.errorText ?? 'Something went wrong...',
         style: AppTextStyles.bodyStyleMedium.changeColor(AppColors.colorWhite),

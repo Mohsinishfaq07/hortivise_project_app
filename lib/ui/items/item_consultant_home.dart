@@ -4,6 +4,7 @@ import 'package:horti_vige/data/models/user/user_model.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 
 class ItemConsultantHome extends StatelessWidget {
   const ItemConsultantHome({
@@ -30,17 +31,29 @@ class ItemConsultantHome extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: user.profileUrl,
-                  width: double.infinity,
-                  height: imageHeight.toDouble(),
-                  fit: BoxFit.fitHeight,
-                  errorWidget: (context, error, stackTrace) => const Icon(
-                    Icons.broken_image,
-                    size: 50,
-                    color: Colors.grey,
-                  ),
-                ),
+                child: UserProfileImage.hasRemote(user.profileUrl)
+                    ? CachedNetworkImage(
+                        imageUrl: user.profileUrl,
+                        width: double.infinity,
+                        height: imageHeight.toDouble(),
+                        fit: BoxFit.fitHeight,
+                        errorWidget: (context, error, stackTrace) =>
+                            const Icon(
+                          Icons.broken_image,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
+                      )
+                    : Container(
+                        width: double.infinity,
+                        height: imageHeight.toDouble(),
+                        color: AppColors.colorGrayBg,
+                        child: Icon(
+                          Icons.person,
+                          size: imageHeight > 80 ? 64 : 48,
+                          color: AppColors.colorGray,
+                        ),
+                      ),
               ),
               8.height,
               Padding(

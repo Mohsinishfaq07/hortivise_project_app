@@ -2,7 +2,7 @@
 // waleedkalyar48@gmail.com/
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:horti_vige/data/enums/package_type.dart';
 import 'package:horti_vige/data/models/package/package_model.dart';
 
@@ -75,11 +75,17 @@ class PackagesProvider extends ChangeNotifier {
   }
 
   Future<List<PackageModel>> getAllPackages() async {
-    if (packages.isEmpty) {
+    if (packages.isNotEmpty) return packages;
+    try {
       final querySnapshots = await _packagesCollectionRef.get();
       packages = querySnapshots.docs.map((doc) {
         return PackageModel.fromJson(doc.data());
       }).toList();
+    } on FirebaseException catch (e) {
+      if (kDebugMode) {
+        debugPrint('PackagesProvider.getAllPackages: ${e.code} ${e.message}');
+      }
+      packages = [];
     }
     return packages;
   }

@@ -108,6 +108,28 @@ class _OnDayChecksState extends State<OnDayChecks> {
   }
 
   @override
+  void didUpdateWidget(OnDayChecks oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.from == widget.from && oldWidget.to == widget.to) {
+      return;
+    }
+    setState(() {
+      for (var i = 0; i < _selections.length; i++) {
+        final s = _selections[i];
+        if (s.isSelected && s.isDefault) {
+          _selections[i] = SelectedDay(
+            from: widget.from,
+            to: widget.to,
+            isDefault: true,
+            isSelected: true,
+            day: s.day,
+          );
+        }
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListView.builder(
       itemCount: _selections.length,

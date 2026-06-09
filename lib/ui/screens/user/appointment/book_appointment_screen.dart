@@ -42,7 +42,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen>
   }
 
   void setLocalTimeZone() async {
-    String localTimeZone = await FlutterTimezone.getLocalTimezone();
+    String localTimeZone =
+        (await FlutterTimezone.getLocalTimezone()).identifier;
     String? matchedTimeZone = timeZoneMapping[localTimeZone];
     patientTimeZone = matchedTimeZone!;
     setState(() {});

@@ -4,6 +4,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 
 class LoadingButton extends StatefulWidget {
   const LoadingButton({super.key, required this.onPressed, required this.text});
@@ -52,8 +53,11 @@ class _LoadingButtonState extends State<LoadingButton> {
       await widget.onPressed!();
     } catch (e, s) {
       log(e.toString(), error: e, stackTrace: s);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error $e')));
+      showAppToast(
+        'Error $e',
+        backgroundColor: Colors.red.shade700,
+        textColor: Colors.white,
+      );
       rethrow;
     } finally {
       setState(() {

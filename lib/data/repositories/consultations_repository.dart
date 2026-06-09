@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-
 import 'package:horti_vige/core/exceptions/app_exception.dart';
 import 'package:horti_vige/core/utils/helpers/preference_manager.dart';
 import 'package:horti_vige/data/database/collection_refs.dart';
@@ -47,29 +45,24 @@ class ConsultationRepository {
 
   static Stream<List<ConsultationModel>>
       getPendingConsultationRequestsBySpecialist() {
-    // Get current DateTime
-    DateTime now = DateTime.now();
-
+    // Only equality filters — avoids a Firestore composite index. Expired
+    // rows are dropped and order is applied in memory.
     return _consultationsCollectionRef
         .where(
           FieldPath(const ['specialist', 'id']),
           isEqualTo: PreferenceManager.getInstance().getCurrentUser()!.id,
         )
         .where('status', isEqualTo: ConsultationStatus.pending.name)
-        .where('startTime',
-            isGreaterThan:
-                now.toIso8601String()) // Filter expired consultations
-        .orderBy('startTime', descending: true)
         .snapshots()
         .map((querySnapshots) {
       final requests = <ConsultationModel>[];
-      for (final DocumentSnapshot<Map<String, dynamic>> doc
-          in querySnapshots.docs) {
-        requests.add(ConsultationModel.fromJson(doc.data()!));
+      for (final doc in querySnapshots.docs) {
+        final data = doc.data();
+        if (data != null) {
+          requests.add(ConsultationModel.fromJson(data));
+        }
       }
-      for (var req in requests) {
-        debugPrint('consultation id: ${req.id}');
-      }
+      requests.sort((a, b) => b.startTime.compareTo(a.startTime));
       return requests;
     });
   }

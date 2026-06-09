@@ -22,7 +22,9 @@ class PatientSideNotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: androidInitializationSettings);
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await flutterLocalNotificationsPlugin.initialize(
+      settings: initializationSettings,
+    );
     d.log('Patient Local notifications initialized');
   }
 
@@ -37,11 +39,11 @@ class PatientSideNotificationService {
         importance: Importance.max);
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      'Consultation Reminder',
-      message,
-      tz.TZDateTime.from(appointmentDateTime, tz.local),
-      NotificationDetails(
+      id: id,
+      title: 'Consultation Reminder',
+      body: message,
+      scheduledDate: tz.TZDateTime.from(appointmentDateTime, tz.local),
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           channel.id,
           channel.name,
@@ -49,9 +51,7 @@ class PatientSideNotificationService {
           priority: Priority.high,
         ),
       ),
-      androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
 
     d.log(

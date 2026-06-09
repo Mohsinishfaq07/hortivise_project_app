@@ -9,6 +9,7 @@ import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/ui/widgets/app_filled_button.dart';
 import 'package:horti_vige/ui/widgets/app_outlined_button.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 import 'package:horti_vige/core/utils/app_date_utils.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -46,9 +47,8 @@ class ItemBookingRequest extends StatelessWidget {
           child: Column(
             children: [
               ListTile(
-                leading: CircleAvatar(
-                  backgroundImage:
-                      NetworkImage(requestModel.customer.profileUrl),
+                leading: UserProfileAvatar(
+                  imageUrl: requestModel.customer.profileUrl,
                   radius: 24,
                 ),
                 title: Text(
@@ -209,7 +209,8 @@ class ItemBookingRequest extends StatelessWidget {
   }
 
   Future<String> localTimeGet() async {
-    String localTimeZone = await FlutterTimezone.getLocalTimezone();
+    String localTimeZone =
+        (await FlutterTimezone.getLocalTimezone()).identifier;
     return localTimeZone;
   }
 

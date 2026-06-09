@@ -1,6 +1,7 @@
 import 'package:horti_vige/data/models/consultation_pricing/consultation_pricing.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import 'package:horti_vige/data/enums/specialist_category.dart';
 import 'package:horti_vige/data/enums/user_type.dart';
 import 'package:horti_vige/data/models/availability/availability.dart';
 import 'package:horti_vige/data/models/user/specialist.dart';
@@ -19,7 +20,6 @@ class UserModel {
     required this.isAuthenticated,
     required this.uId,
     this.specialist,
-    required this.stripeId,
     this.balance = 0,
     this.availability,
     this.fcmToken,
@@ -36,7 +36,6 @@ class UserModel {
       type: UserType.CUSTOMER,
       isAuthenticated: false,
       uId: '',
-      stripeId: '',
       availability: Availability.empty(),
       specialist: Specialist.empty(),
       consultationPricing: ConsultationPricingModel.empty(),
@@ -45,6 +44,54 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) =>
       _$UserModelFromJson(json);
+
+  /// Parses user blobs stored on [ConsultationModel] documents.
+  /// Full legacy profiles include `consultationPricing`; slim writes omit it.
+  factory UserModel.fromConsultationEmbed(Map<String, dynamic> json) {
+    if (json.containsKey('consultationPricing')) {
+      return UserModel.fromJson(json);
+    }
+    final typeStr = json['type'] as String? ?? UserType.CUSTOMER.name;
+    final type = UserType.values.firstWhere(
+      (e) => e.name == typeStr,
+      orElse: () => UserType.CUSTOMER,
+    );
+    Specialist? spec;
+    final specMap = json['specialist'];
+    if (specMap is Map<String, dynamic>) {
+      final catName = specMap['category'] as String? ?? '';
+      final statusName = specMap['status'] as String? ?? SpecialistStatus.pending.name;
+      spec = Specialist(
+        professionalName: specMap['professionalName'] as String? ?? '',
+        email: specMap['email'] as String? ?? '',
+        bio: specMap['bio'] as String? ?? '',
+        category: SpecialistCategory.values.firstWhere(
+          (c) => c.name == catName,
+          orElse: () => SpecialistCategory.All,
+        ),
+        status: SpecialistStatus.values.firstWhere(
+          (s) => s.name == statusName,
+          orElse: () => SpecialistStatus.pending,
+        ),
+        statusMessage: specMap['statusMessage'] as String? ?? '',
+      );
+    }
+    return UserModel(
+      id: json['id'] as String? ?? '',
+      userName: json['userName'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      profileUrl: json['profileUrl'] as String? ?? '',
+      type: type,
+      profession: json['profession'] as String? ?? '',
+      isAuthenticated: json['isAuthenticated'] as bool? ?? true,
+      uId: json['uId'] as String? ?? '',
+      specialist: spec,
+      balance: 0,
+      availability: null,
+      fcmToken: null,
+      consultationPricing: null,
+    );
+  }
   final String id;
   final String userName;
   final String email;
@@ -54,7 +101,6 @@ class UserModel {
   final Specialist? specialist;
   final bool isAuthenticated;
   final String uId;
-  final String stripeId;
   final double balance;
   final Availability? availability;
   final String? fcmToken;
@@ -72,7 +118,6 @@ class UserModel {
     Specialist? specialist,
     bool? isAuthenticated,
     String? uId,
-    String? stripeId,
     double? balance,
     Availability? availability,
     ConsultationPricingModel? consultationPricing,
@@ -87,7 +132,6 @@ class UserModel {
       specialist: specialist ?? this.specialist,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       uId: uId ?? this.uId,
-      stripeId: stripeId ?? this.stripeId,
       balance: balance ?? this.balance,
       availability: availability ?? this.availability,
       consultationPricing: consultationPricing ?? this.consultationPricing,

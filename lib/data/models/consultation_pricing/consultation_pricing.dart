@@ -21,6 +21,38 @@ class ConsultationPricingModel {
     );
   }
 
+  /// Default tiers consultants can edit later (stored when profile had no pricing).
+  /// Tiers are **on** by default so booking/video flows work until toggled off.
+  factory ConsultationPricingModel.defaultSeed() {
+    return ConsultationPricingModel(
+      textPackages: [
+        TextPricingModel(noOfTexts: 15, price: 20, isEnabled: true),
+        TextPricingModel(noOfTexts: 30, price: 37, isEnabled: true),
+        TextPricingModel(noOfTexts: 50, price: 45, isEnabled: true),
+      ],
+      videoPackages: [
+        VideoPricingModel(
+          noOf: 30,
+          duration: VideoDurationEnum.minute,
+          price: 20,
+          isEnabled: true,
+        ),
+        VideoPricingModel(
+          noOf: 1,
+          duration: VideoDurationEnum.hour,
+          price: 37,
+          isEnabled: true,
+        ),
+        VideoPricingModel(
+          noOf: 2,
+          duration: VideoDurationEnum.hour,
+          price: 45,
+          isEnabled: true,
+        ),
+      ],
+    );
+  }
+
   factory ConsultationPricingModel.fromJson(Map<String, dynamic> json) =>
       _$ConsultationPricingModelFromJson(json);
 

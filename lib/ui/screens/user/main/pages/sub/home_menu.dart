@@ -27,12 +27,7 @@ class _HomeMenuState extends State<HomeMenu> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SuperTooltip(
-          hasShadow: false,
-          minimumOutsideMargin: 50,
-          backgroundColor: AppColors.appGreenMaterial,
-          borderColor: AppColors.appGreenMaterial,
-          borderRadius: 5,
-          elevation: 2,
+
           content: Container(
             height: 340,
             color: AppColors.appGreenMaterial,

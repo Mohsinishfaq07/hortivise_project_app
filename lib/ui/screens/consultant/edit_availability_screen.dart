@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:horti_vige/data/database/collection_refs.dart';
+
 import 'package:provider/provider.dart';
 
+import 'package:horti_vige/core/exceptions/app_exception.dart';
 import 'package:horti_vige/core/utils/app_consts.dart';
 import 'package:horti_vige/core/utils/app_date_utils.dart';
+import 'package:horti_vige/data/models/availability/availability.dart';
 import 'package:horti_vige/data/models/availability/day_availability.dart';
 import 'package:horti_vige/providers/availability_provider.dart';
 import 'package:horti_vige/providers/user_provider.dart';
@@ -32,6 +34,100 @@ class _EditAvailabilityScreenState extends State<EditAvailabilityScreen> {
   List<String> timeZones = Constants.timeZones;
   String? selectedTimeZone;
 
+  /// Per-day slots use [DayAvailability.from]/[DayAvailability.to]; keep them
+  /// aligned when the global default window changes.
+  Availability _availabilityWithNewDefaultFrom(
+    Availability a,
+    TimeOfDay newFrom,
+  ) {
+    final newDays = a.days
+        .map(
+          (d) => DayAvailability(
+            isDefault: d.isDefault,
+            from: d.isDefault ? newFrom : d.from,
+            to: d.isDefault ? a.defaultTo : d.to,
+            day: d.day,
+          ),
+        )
+        .toList();
+    return a.copyWith(defaultFrom: newFrom, days: newDays);
+  }
+
+  Availability _availabilityWithNewDefaultTo(
+    Availability a,
+    TimeOfDay newTo,
+  ) {
+    final newDays = a.days
+        .map(
+          (d) => DayAvailability(
+            isDefault: d.isDefault,
+            from: d.isDefault ? a.defaultFrom : d.from,
+            to: d.isDefault ? newTo : d.to,
+            day: d.day,
+          ),
+        )
+        .toList();
+    return a.copyWith(defaultTo: newTo, days: newDays);
+  }
+
+  /// Ensures every default day uses current [defaultFrom]/[defaultTo] before save.
+  Availability _mergeDefaultTimesIntoDays(Availability a) {
+    final days = a.days
+        .map(
+          (d) => DayAvailability(
+            isDefault: d.isDefault,
+            from: d.isDefault ? a.defaultFrom : d.from,
+            to: d.isDefault ? a.defaultTo : d.to,
+            day: d.day,
+          ),
+        )
+        .toList();
+    return a.copyWith(days: days);
+  }
+
+  void _showAvailabilitySnack(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
+    // SnackBars do not appear in adb/logcat; mirror every user-visible message.
+    debugPrint(
+      '[Availability] ${isError ? "ERROR" : "OK"}: $message',
+    );
+    if (!context.mounted) return;
+    showAppToast(
+      message,
+      backgroundColor:
+          isError ? Colors.red.shade700 : AppColors.colorGreen,
+      textColor: Colors.white,
+      toastLength: Toast.LENGTH_LONG,
+    );
+  }
+
+  /// Same calendar day: end must be strictly after start (e.g. 9 AM → 7 AM is invalid).
+  bool _isValidSameDayWindow(TimeOfDay from, TimeOfDay to) {
+    final fromM = from.hour * 60 + from.minute;
+    final toM = to.hour * 60 + to.minute;
+    return toM > fromM;
+  }
+
+  /// 24 h window: 12:00 AM → 11:00 PM (hourly), same as [Constants.availabilityFullDayFrom/To].
+  Availability _availabilityFullDay(Availability a) {
+    const from = Constants.availabilityFullDayFrom;
+    const to = Constants.availabilityFullDayTo;
+    final newDays = a.days
+        .map(
+          (d) => DayAvailability(
+            isDefault: d.isDefault,
+            from: d.isDefault ? from : d.from,
+            to: d.isDefault ? to : d.to,
+            day: d.day,
+          ),
+        )
+        .toList();
+    return a.copyWith(defaultFrom: from, defaultTo: to, days: newDays);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +140,7 @@ class _EditAvailabilityScreenState extends State<EditAvailabilityScreen> {
   Future<void> _setUserTimeZone() async {
     try {
       String localTimeZone =
-          await FlutterTimezone.getLocalTimezone(); // e.g., Asia/Karachi
+          (await FlutterTimezone.getLocalTimezone()).identifier; // e.g., Asia/Karachi
       print('Local time zone: $localTimeZone');
 
       Map<String, String> timeZoneMapping = {
@@ -224,17 +320,17 @@ class _EditAvailabilityScreenState extends State<EditAvailabilityScreen> {
                               floatHint: false,
                               onChanged: (value) {
                                 if (value != null) {
+                                  final newFrom = Constants.getTimes()
+                                      .firstWhere(
+                                        (element) =>
+                                            element.timeString == value,
+                                      )
+                                      .time;
                                   provider.availability =
-                                      provider.availability.copyWith(
-                                    defaultFrom: Constants.getTimes()
-                                        .firstWhere(
-                                          (element) =>
-                                              element.timeString == value,
-                                        )
-                                        .time,
+                                      _availabilityWithNewDefaultFrom(
+                                    provider.availability,
+                                    newFrom,
                                   );
-                                  provider.defaultFrom =
-                                      provider.availability.defaultFrom;
                                 }
                               },
                             ),
@@ -271,17 +367,17 @@ class _EditAvailabilityScreenState extends State<EditAvailabilityScreen> {
                               floatHint: false,
                               onChanged: (value) {
                                 if (value != null) {
+                                  final newTo = Constants.getTimes()
+                                      .firstWhere(
+                                        (element) =>
+                                            element.timeString == value,
+                                      )
+                                      .time;
                                   provider.availability =
-                                      provider.availability.copyWith(
-                                    defaultTo: Constants.getTimes()
-                                        .firstWhere(
-                                          (element) =>
-                                              element.timeString == value,
-                                        )
-                                        .time,
+                                      _availabilityWithNewDefaultTo(
+                                    provider.availability,
+                                    newTo,
                                   );
-                                  provider.defaultTo =
-                                      provider.availability.defaultTo;
                                 }
                               },
                             ),
@@ -290,6 +386,28 @@ class _EditAvailabilityScreenState extends State<EditAvailabilityScreen> {
                       ),
                     ),
                   ],
+                ),
+                8.height,
+                Padding(
+                  padding: 12.horizontalPadding,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          provider.availability =
+                              _availabilityFullDay(provider.availability);
+                        });
+                        _showAvailabilitySnack(
+                          context,
+                          'Full day set: 12:00 AM – 11:00 PM (24 hourly slots). '
+                          'Tap Update Availability to save.',
+                        );
+                      },
+                      icon: const Icon(Icons.all_inclusive, size: 20),
+                      label: const Text('Full day (24 hours)'),
+                    ),
+                  ),
                 ),
                 12.height,
                 AppDropdownInput(
@@ -354,37 +472,113 @@ class _EditAvailabilityScreenState extends State<EditAvailabilityScreen> {
                   child: AppFilledButton(
                     title: 'Update Availability',
                     onPress: () async {
-                      if (provider.availability.days.isEmpty) {
-                        Fluttertoast.showToast(
-                          msg: 'Please select at least 1 day',
+                      if (provider.user == null) {
+                        _showAvailabilitySnack(
+                          context,
+                          'User profile load nahi hui — dubara login kar ke try karein.',
+                          isError: true,
                         );
                         return;
                       }
-                      provider.availability.toJson().log();
-                      await context.read<UserProvider>().updateUser(
-                            model: provider.user!.copyWith(
-                              availability: provider.availability,
-                            ),
-                          );
-                      CollectionRefs.users.doc(provider.user!.email);
-                      try {
-                        await FirebaseFirestore.instance
-                            .collection('Users')
-                            .doc(provider.user!.email)
-                            .set(
-                          {'timeZone': selectedTimeZone},
-                          SetOptions(merge: true),
+                      if (provider.availability.days.isEmpty) {
+                        _showAvailabilitySnack(
+                          context,
+                          'Please select at least 1 day',
+                          isError: true,
                         );
-                        SharedPreferences sf =
-                            await SharedPreferences.getInstance();
-
-                        sf.setString('timeZone', selectedTimeZone!);
-                      } catch (e) {
-                        debugPrint('time zone error :${e.toString()}');
+                        return;
                       }
-                      Fluttertoast.showToast(msg: 'Availability Updated');
-                      if (context.mounted) {
-                        Navigator.pop(context);
+                      final merged =
+                          _mergeDefaultTimesIntoDays(provider.availability);
+                      provider.availability = merged;
+                      final fromStr =
+                          Constants.timeOfDayFormat(merged.defaultFrom);
+                      final toStr = Constants.timeOfDayFormat(merged.defaultTo);
+                      if (!_isValidSameDayWindow(
+                        merged.defaultFrom,
+                        merged.defaultTo,
+                      )) {
+                        _showAvailabilitySnack(
+                          context,
+                          'End time start time se pehle hai ($fromStr → $toStr). '
+                          'Same day ke liye "To" hamesha "From" ke baad hona chahiye. '
+                          'Agar 7:00 PM chahiye tha to "To" mein sham ka time select karein.',
+                          isError: true,
+                        );
+                        return;
+                      }
+                      debugPrint(
+                        '[Availability] saving window $fromStr – $toStr, '
+                        'days=${merged.days.length}, tz=${selectedTimeZone ?? "-"}',
+                      );
+                      try {
+                        await context.read<UserProvider>().updateUser(
+                              model: provider.user!.copyWith(
+                                availability: merged,
+                              ),
+                            );
+                        final wroteDocId =
+                            FirebaseAuth.instance.currentUser?.email ??
+                                provider.user!.email;
+                        debugPrint(
+                          '[Availability] Firestore path Users/$wroteDocId '
+                          '(must match auth email for rules)',
+                        );
+                        final tzLabel =
+                            selectedTimeZone ?? Constants.timeZones.first;
+                        try {
+                          final usersDocId =
+                              FirebaseAuth.instance.currentUser?.email ??
+                                  provider.user!.email;
+                          await FirebaseFirestore.instance
+                              .collection('Users')
+                              .doc(usersDocId)
+                              .set(
+                            {'timeZone': tzLabel},
+                            SetOptions(merge: true),
+                          );
+                          final sf = await SharedPreferences.getInstance();
+                          await sf.setString('timeZone', tzLabel);
+                        } catch (e) {
+                          debugPrint('time zone error :${e.toString()}');
+                        }
+                        debugPrint(
+                          'Availability saved: $fromStr – $toStr',
+                        );
+                        if (!context.mounted) return;
+                        _showAvailabilitySnack(
+                          context,
+                          'Availability save ho chuki hai · '
+                          'Updated: $fromStr – $toStr',
+                        );
+                        // Toast is overlay; short delay before pop so it stays visible.
+                        await Future<void>.delayed(
+                          const Duration(milliseconds: 1600),
+                        );
+                        if (context.mounted) Navigator.pop(context);
+                      } on AppException catch (e, st) {
+                        debugPrint(
+                          '[Availability] AppException title=${e.title} '
+                          'message=${e.message}',
+                        );
+                        debugPrint('$st');
+                        if (context.mounted) {
+                          _showAvailabilitySnack(
+                            context,
+                            e.message,
+                            isError: true,
+                          );
+                        }
+                      } catch (e, st) {
+                        debugPrint('[Availability] save failed: $e');
+                        debugPrint('$st');
+                        if (context.mounted) {
+                          _showAvailabilitySnack(
+                            context,
+                            'Could not save availability: $e',
+                            isError: true,
+                          );
+                        }
                       }
                     },
                   ),

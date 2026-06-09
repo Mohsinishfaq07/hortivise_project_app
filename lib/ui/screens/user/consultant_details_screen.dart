@@ -14,6 +14,7 @@ import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/ui/widgets/app_filled_button.dart';
 import 'package:horti_vige/ui/widgets/app_horizontal_choise_chips.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 import 'package:horti_vige/core/utils/app_consts.dart';
 import 'package:provider/provider.dart';
 
@@ -37,7 +38,7 @@ class ConsultantDetailsScreen extends StatelessWidget {
               left: 0,
               right: 0,
               top: 0,
-              child: userModel.profileUrl.startsWith('http')
+              child: UserProfileImage.hasRemote(userModel.profileUrl)
                   ? AspectRatio(
                       aspectRatio: 9 / 9,
                       child: Image.network(
@@ -52,7 +53,17 @@ class ConsultantDetailsScreen extends StatelessWidget {
                         ),
                       ),
                     )
-                  : const SizedBox(),
+                  : AspectRatio(
+                      aspectRatio: 9 / 9,
+                      child: ColoredBox(
+                        color: AppColors.colorGrayBg,
+                        child: Icon(
+                          Icons.person,
+                          size: 120,
+                          color: AppColors.colorGray,
+                        ),
+                      ),
+                    ),
             ),
             Positioned(
               left: 8,
@@ -191,7 +202,8 @@ class ConsultantDetailsScreen extends StatelessWidget {
                                       if (provider.getSelectedCat() ==
                                           PackageType.text) {
                                         final packages = userModel
-                                            .consultationPricing!.textPackages
+                                            .consultationPricing!
+                                            .getTextPackages()
                                             .mapIndexed((i, e) {
                                           return PackageModel(
                                             id: i.toString(),
@@ -218,11 +230,12 @@ class ConsultantDetailsScreen extends StatelessWidget {
                                         );
                                       } else {
                                         final packages = userModel
-                                            .consultationPricing!.videoPackages
+                                            .consultationPricing!
+                                            .getVideoPackages()
                                             .mapIndexed((i, e) {
                                           return PackageModel(
                                             id: i.toString(),
-                                            type: PackageType.text,
+                                            type: PackageType.video,
                                             title:
                                                 '${e.noOf} ${e.duration.name.capitalizeFirstLetter()}${e.noOf > 1 ? 's' : ''} Call',
                                             amount: e.price,
@@ -298,7 +311,8 @@ class ConsultantDetailsScreen extends StatelessWidget {
                                 packages = packagesProvider.packages;
                               } else {
                                 packages = [
-                                  ...userModel.consultationPricing!.textPackages
+                                  ...userModel.consultationPricing!
+                                      .getTextPackages()
                                       .mapIndexed((i, e) {
                                     return PackageModel(
                                       id: i.toString(),
@@ -309,8 +323,8 @@ class ConsultantDetailsScreen extends StatelessWidget {
                                       textLimit: e.noOfTexts,
                                     );
                                   }),
-                                  ...userModel
-                                      .consultationPricing!.videoPackages
+                                  ...userModel.consultationPricing!
+                                      .getVideoPackages()
                                       .mapIndexed((i, e) {
                                     return PackageModel(
                                       id: i.toString(),

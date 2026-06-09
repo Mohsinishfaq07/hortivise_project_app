@@ -13,10 +13,7 @@ import 'package:horti_vige/data/models/package/package_model.dart';
 import 'package:horti_vige/data/models/user/user_model.dart';
 import 'package:horti_vige/data/repositories/consultations_repository.dart';
 import 'package:horti_vige/data/services/notification_service.dart';
-import 'package:horti_vige/data/services/payments_service.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
-
-import 'package:horti_vige/data/services/stripe.dart';
 
 class ConsultationProvider extends ChangeNotifier {
   final _consultationsCollectionRef =
@@ -24,14 +21,32 @@ class ConsultationProvider extends ChangeNotifier {
   final _notificationsCollectionRef =
       FirebaseFirestore.instance.collection('Notifications');
 
-  final _userCollectionRef = FirebaseFirestore.instance.collection('Users');
-
-  final _transCollectionRef =
-      FirebaseFirestore.instance.collection('Transactions');
-
   final double taxAmount = 2.75;
 
   PreferenceManager prefs = PreferenceManager.getInstance();
+
+  Future<void> _setNotificationDoc(
+    String documentId,
+    NotificationModel model,
+  ) async {
+    try {
+      await _notificationsCollectionRef.doc(documentId).set(model.toJson());
+    } on FirebaseException catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          'Notifications write skipped (${e.code}): ${e.message}',
+        );
+      }
+    }
+  }
+
+  /// One Firestore listener for the home screen. Call [resetSpecialistBookingStream]
+  /// after logout / account switch so the next specialist gets a fresh query.
+  Stream<List<ConsultationModel>>? _pendingBySpecialistStream;
+
+  void resetSpecialistBookingStream() {
+    _pendingBySpecialistStream = null;
+  }
 
   Future<String> sendConsultationRequest(
       {required UserModel specialistUser,
@@ -60,27 +75,6 @@ class ConsultationProvider extends ChangeNotifier {
         packageType: selectedPackage.type,
         timeZone: timeZone);
 
-    final paymentService = PaymentsService();
-
-    final paymentIntent = await paymentService.createPaymentIntent(
-      totalAmount,
-    );
-    await paymentService.initPaymentSheet(
-      paymentIntent,
-      specialistUser.email,
-      specialistUser.userName,
-    );
-
-    final isPaymentSuccess = await paymentService.displayPaymentSheet();
-
-    if (!isPaymentSuccess) {
-      return Future.error('Payment failed');
-    }
-    await StripeController.instance.uplaodTopUpDetails(
-      paymentIntent['id'],
-      specialistUser.specialist!.stripeId,
-      id,
-    );
     await ConsultationRepository.addConsultationRequest(consultation);
 
     final notificationId = _notificationsCollectionRef.doc().id;
@@ -103,14 +97,15 @@ class ConsultationProvider extends ChangeNotifier {
         userType: prefs.getCurrentUser()!.type,
       ),
     );
-    await _notificationsCollectionRef.doc(id).set(notificationModel.toJson());
+    await _setNotificationDoc(id, notificationModel);
 
     return 'Request submitted successfully';
   }
 
   Stream<List<ConsultationModel>>
       getAllConsultationPendingRequestsBySpecialist() {
-    return ConsultationRepository.getPendingConsultationRequestsBySpecialist();
+    return _pendingBySpecialistStream ??=
+        ConsultationRepository.getPendingConsultationRequestsBySpecialist();
   }
 
   Future<void> updateConsultationRequestStatus({
@@ -122,53 +117,6 @@ class ConsultationProvider extends ChangeNotifier {
     final consultationDoc =
         await _consultationsCollectionRef.doc(consultationId).get();
     final consultation = ConsultationModel.fromJson(consultationDoc.data()!);
-    // if (status == ConsultationStatus.accepted) {
-    //   final totalPayableAmount = consultation.totalAmount;
-    //   final customerDoc =
-    //       await _userCollectionRef.doc(consultation.customer.id).get();
-    //   final customer = UserModel.fromJson(customerDoc.data()!);
-    //   if (customer.balance < totalPayableAmount) {
-    //     return Future.error(
-    //       Exception('Customer does not have enough balance in wallet!'),
-    //     );
-    //   } else {
-    //     await _userCollectionRef
-    //         .doc(customer.id)
-    //         .update({'balance': customer.balance - totalPayableAmount});
-
-    //     final transId = _transCollectionRef.doc().id;
-    //     final transaction = TransactionModel(
-    //       id: transId,
-    //       amount: consultation.totalAmount,
-    //       currency: 'AED',
-    //       userId: prefs.getCurrentUser()!.uId,
-    //       type: TransactionType.TOPUP,
-    //       status: TransactionStatus.PENDING,
-    //       description:
-    //           'Consultation of ${consultation.totalAmount} from ${customer.userName}',
-    //       time: DateTime.now().millisecondsSinceEpoch,
-    //     );
-    //     //TODO: this transaction will complete from admin pannel
-    //     await _transCollectionRef.doc(transaction.id).set(transaction.toJson());
-
-    //     final transCusId = _transCollectionRef.doc().id;
-
-    //     final transactionCustomer = TransactionModel(
-    //       id: transCusId,
-    //       amount: consultation.totalAmount,
-    //       currency: 'AED',
-    //       userId: customer.uId,
-    //       type: TransactionType.CONSULTATION,
-    //       status: TransactionStatus.COMPLETED,
-    //       description:
-    //           'consultation accepted by ${prefs.getCurrentUser()!.userName}',
-    //       time: DateTime.now().millisecondsSinceEpoch,
-    //     );
-    //     await _transCollectionRef
-    //         .doc(transCusId)
-    //         .set(transactionCustomer.toJson());
-    //   }
-    // }
 
     await _consultationsCollectionRef.doc(consultationId).update(map);
 
@@ -206,7 +154,7 @@ class ConsultationProvider extends ChangeNotifier {
         userType: prefs.getCurrentUser()!.type,
       ),
     );
-    await _notificationsCollectionRef.doc(id).set(notificationModel.toJson());
+    await _setNotificationDoc(id, notificationModel);
   }
 
   Future<void> updateConsultationModel({
@@ -245,7 +193,7 @@ class ConsultationProvider extends ChangeNotifier {
         userType: prefs.getCurrentUser()!.type,
       ),
     );
-    await _notificationsCollectionRef.doc(id).set(notificationModel.toJson());
+    await _setNotificationDoc(id, notificationModel);
   }
 
   Future<List<ConsultationModel>> getAllCurrentUserConsultations() async {
@@ -326,7 +274,7 @@ class ConsultationProvider extends ChangeNotifier {
       ),
       descriptionSpecialist: specDes,
     );
-    await _notificationsCollectionRef.doc(id).set(notificationModel.toJson());
+    await _setNotificationDoc(id, notificationModel);
     NotificationService.sendNotificationNow(
       title: 'Consultation Canceled',
       body: 'You canceled the consultation.',

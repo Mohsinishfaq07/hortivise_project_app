@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,15 +12,27 @@ import 'package:horti_vige/data/enums/user_type.dart';
 import 'package:horti_vige/data/models/availability/availability.dart';
 import 'package:horti_vige/data/models/user/specialist.dart';
 import 'package:horti_vige/data/models/user/user_model.dart';
+import 'package:provider/provider.dart';
+import 'package:horti_vige/providers/consultations_provider.dart';
 import 'package:horti_vige/data/repositories/user_repository.dart';
 import 'package:horti_vige/data/services/auth_service.dart';
-import 'package:horti_vige/data/services/stripe.dart';
 import 'package:horti_vige/ui/screens/common/profile_screen.dart';
 import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/core/utils/helpers/preference_manager.dart';
 import 'package:horti_vige/ui/widgets/app_nav_drawer.dart';
 
 class UserProvider extends ChangeNotifier {
+  /// Firestore can hang when the device is offline or the link is flaky; without
+  /// a timeout, [updateUser] never completes and [finally] never clears loading.
+  /// 90s helps slow mobile / USB debugging paths; still fails fast vs hanging forever.
+  static const Duration _firestoreOpTimeout = Duration(seconds: 90);
+
+  static const String _firestoreTimeoutMessage =
+      'Firestore did not respond in time. Stay on this screen until save finishes '
+      '(switching apps can kill the connection). Check Wi‑Fi, turn off VPN, or try '
+      'again. If Google Play services / DNS fail, toggle airplane mode once. '
+      'Local data is kept when possible.';
+
   final _authService = AuthService();
   final _userCollectionRef = FirebaseFirestore.instance.collection('Users');
   final _profilesStoreRef =
@@ -29,9 +42,44 @@ class UserProvider extends ChangeNotifier {
 
   final List<UserModel> _specialistsList = [];
 
+  /// One stream per signed-in email so [StreamBuilder] is not reset to waiting
+  /// on every [notifyListeners] from [Consumer<UserProvider>].
+  String? _userStreamEmail;
+  Stream<UserModel>? _userStream;
+
   var _selectedCat = 'All';
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  /// Resets stuck loading from [updateUser] / [loginUser] (e.g. after logout or
+  /// if a network call never completed). Login UI binds to [isLoading].
+  void clearLoading() {
+    if (!_isLoading) return;
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Re-enables network and retries [write] up to [maxAttempts] times on timeout
+  /// (common after app backgrounding, DNS blips, or MIUI killing sockets).
+  Future<void> _firestoreWriteWithRetries(
+    Future<void> Function() write, {
+    required Duration perAttemptTimeout,
+    int maxAttempts = 3,
+  }) async {
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await FirebaseFirestore.instance.enableNetwork();
+        await write().timeout(
+          perAttemptTimeout,
+          onTimeout: () => throw TimeoutException('firestore'),
+        );
+        return;
+      } on TimeoutException {
+        if (attempt == maxAttempts) rethrow;
+        await Future<void>.delayed(Duration(seconds: 2 * attempt));
+      }
+    }
+  }
 
   Future<void> signUpNewUser({
     required String name,
@@ -40,21 +88,23 @@ class UserProvider extends ChangeNotifier {
     required UserType type,
     String profileUrl = '',
   }) async {
+    User? authUser;
     try {
+      final effectiveProfileUrl = profileUrl.isNotEmpty ? profileUrl : '';
+
       final user = await _authService.createUserWithEmailAndPassword(
         email,
         password,
       );
-      final stripeId = await _createStripeUser(name, email, type);
+      authUser = user;
       final model = UserModel(
         id: user.uid,
         userName: name,
         email: email,
-        profileUrl: profileUrl,
+        profileUrl: effectiveProfileUrl,
         uId: user.uid,
         isAuthenticated: true,
         type: type,
-        stripeId: stripeId,
       );
       await UserRepository.createUser(model);
       await _prefManager.saveUserModelInPref(model);
@@ -63,8 +113,15 @@ class UserProvider extends ChangeNotifier {
         await updateProfilePhoto(profileUri: profileUrl);
       }
     } on AppException {
+      // If profile save failed after auth user creation, rollback auth user.
+      try {
+        await authUser?.delete();
+      } catch (_) {}
       rethrow;
     } catch (e) {
+      try {
+        await authUser?.delete();
+      } catch (_) {}
       throw AppException(
         title: 'Something went wrong',
         message: e.toString(),
@@ -73,27 +130,72 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateUser({required UserModel model}) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      await UserRepository.updateUser(model);
-      if (model.type == UserType.SPECIALIST && bioController.text.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection("Users")
-            .doc(model.email)
-            .update({
-          'specialist.bio': bioController.text.trim(),
-        });
-      }
-      _prefManager.saveUserModelInPref(model);
-    } catch (e) {
-      e.logError();
+  /// When [silent] is true, no global loading and no thrown [AppException] on
+  /// failure — used for background sync (e.g. default availability). Prefs are
+  /// still updated so local state matches when the network is poor.
+  Future<void> updateUser({
+    required UserModel model,
+    bool silent = false,
+  }) async {
+    if (!silent) {
+      _isLoading = true;
+      notifyListeners();
     }
 
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final t = silent ? const Duration(minutes: 3) : _firestoreOpTimeout;
+      await _firestoreWriteWithRetries(
+        () => UserRepository.updateUser(model),
+        perAttemptTimeout: t,
+      );
+      if (!silent &&
+          model.type == UserType.SPECIALIST &&
+          bioController.text.isNotEmpty) {
+        await _firestoreWriteWithRetries(
+          () async {
+            await FirebaseFirestore.instance
+                .collection('Users')
+                .doc(model.email)
+                .update({
+              'specialist.bio': bioController.text.trim(),
+            });
+          },
+          perAttemptTimeout: t,
+        );
+      }
+      await _prefManager.saveUserModelInPref(model);
+    } on TimeoutException catch (_) {
+      if (silent) {
+        await _prefManager.saveUserModelInPref(model);
+        return;
+      }
+      throw AppException(
+        title: 'Connection timeout',
+        message: _firestoreTimeoutMessage,
+      );
+    } on AppException catch (e) {
+      if (silent) {
+        await _prefManager.saveUserModelInPref(model);
+        e.message.logError();
+        return;
+      }
+      rethrow;
+    } catch (e) {
+      e.logError();
+      if (silent) {
+        await _prefManager.saveUserModelInPref(model);
+        return;
+      }
+      throw AppException(
+        title: 'Update failed',
+        message: e.toString(),
+      );
+    } finally {
+      if (!silent) {
+        _isLoading = false;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> updateFCMToken() async {
@@ -115,13 +217,40 @@ class UserProvider extends ChangeNotifier {
   }
 
   Stream<UserModel> getUserStream() {
-    return UserRepository.getUserStream(_firebaseAuth.currentUser!.email!);
+    final email = _firebaseAuth.currentUser?.email ??
+        _prefManager.getCurrentUser()?.email;
+    if (email == null || email.isEmpty) {
+      _userStreamEmail = null;
+      _userStream = null;
+      return Stream<UserModel>.error(
+        StateError('No signed-in user email for user stream'),
+      );
+    }
+    if (_userStream == null || _userStreamEmail != email) {
+      _userStreamEmail = email;
+      _userStream = UserRepository.getUserStream(email);
+    }
+    return _userStream!;
+  }
+
+  /// If Firebase Auth succeeded but loading the Firestore profile did not, we must
+  /// sign out and clear prefs. Otherwise [LandingScreen] still sees a matching
+  /// `currentUser` + cached email on the next launch and skips login — even though
+  /// this login never finished.
+  Future<void> _rollbackLoginAfterAuthSucceeded() async {
+    try {
+      await _firebaseAuth.signOut();
+    } catch (_) {}
+    try {
+      await _prefManager.deleteUser();
+    } catch (_) {}
   }
 
   Future<void> loginUser(
       {required String email,
       required String password,
       required BuildContext context}) async {
+    var authSucceeded = false;
     try {
       _isLoading = true;
       notifyListeners();
@@ -129,20 +258,39 @@ class UserProvider extends ChangeNotifier {
         email,
         password,
       );
+      authSucceeded = true;
 
-      final appUser = await UserRepository.get(email);
+      // Firestore first read after sign-in can take several seconds (TLS/GMS init,
+      // wireless debug latency). Auth is already done; this fetch loads your profile.
+      final resolvedEmail = _firebaseAuth.currentUser?.email ?? email;
+      final appUser = await UserRepository.get(resolvedEmail).timeout(
+        const Duration(seconds: 45),
+        onTimeout: () => throw AppException(
+          title: 'Connection timeout',
+          message: _firestoreTimeoutMessage,
+        ),
+      );
       if (appUser == null) {
-        Future.error('User not found, please check your email or password');
+        throw AppException(
+          title: 'Login failed',
+          message: 'User profile not found. Please sign up again.',
+        );
       } else {
-        if (appUser.specialist != null && appUser.specialist!.stripeId != '') {
-          StripeController.instance.initStripe(appUser.specialist!.stripeId);
-        }
         await _prefManager.saveUserModelInPref(appUser);
+        if (context.mounted) {
+          context.read<ConsultationProvider>().resetSpecialistBookingStream();
+        }
         Navigator.pushNamed(context, ZoomDrawerScreen.routeName);
       }
-    } on AppException {
+    } on AppException catch (e) {
+      if (authSucceeded) {
+        await _rollbackLoginAfterAuthSucceeded();
+      }
       rethrow;
     } catch (e) {
+      if (authSucceeded) {
+        await _rollbackLoginAfterAuthSucceeded();
+      }
       throw AppException(
         title: 'Something went wrong',
         message: e.toString(),
@@ -196,23 +344,19 @@ class UserProvider extends ChangeNotifier {
       required String category,
       required String bio,
       required String password}) async {
-    final stripeId = await _createStripeUser(name, email, UserType.SPECIALIST);
-    final currentTimeZone = await FlutterTimezone.getLocalTimezone();
-    final placeHolderName = getPlaceHolderName(name);
+    final currentTimeZone =
+        (await FlutterTimezone.getLocalTimezone()).identifier;
     final userModel = UserModel(
       id: _userCollectionRef.doc().id,
       userName: name,
       email: email,
-      stripeId: stripeId,
       type: UserType.SPECIALIST,
-      profileUrl:
-          'https://ui-avatars.com/api/?name=$placeHolderName&background=random&size=200',
-      // 'https://firebasestorage.googleapis.com/v0/b/hortivige.appspot.com/o/defaults%2FDefault_pfp.svg.png?alt=media&token=acdad01c-7608-421c-b7cd-df899bf00feb&_gl=1*630m8s*_ga*MTYyNjI3NTU0MC4xNjk0NTkzODc3*_ga_CW55HF8NVT*MTY5NjY4Mjc5MS40Mi4xLjE2OTY2ODI4NjQuNDcuMC4w',
+      profileUrl: '',
       uId: '',
       isAuthenticated: true,
       specialist: Specialist(
-        isStripeActive: false,
-        stripeId: stripeId,
+        status: SpecialistStatus.enabled,
+        statusMessage: 'Approved',
         professionalName: name,
         email: email,
         bio: bio,
@@ -226,23 +370,40 @@ class UserProvider extends ChangeNotifier {
       ),
     );
 
-    final docs =
-        await _userCollectionRef.where('email', isEqualTo: email).get();
     print(userModel.toJson());
-    if (docs.docs.isNotEmpty) {
-      return Future.error('User already exist with provided email');
-    } else {
-      // run signup function here
+    // Avoid pre-signup Firestore query here because anonymous/unauthorized reads
+    // can be blocked by rules. Firebase Auth already validates duplicate emails.
+    try {
+      final user = await _authService.createUserWithEmailAndPassword(
+        email,
+        password,
+      );
+      final specialistModel = userModel.copyWith(
+        id: user.uid,
+        uId: user.uid,
+      );
       try {
-        final user = await _authService.createUserWithEmailAndPassword(
-          email,
-          password,
-        );
-        await _userCollectionRef.doc(userModel.email).set(userModel.toJson());
-        return 'Request submitted successfully!';
+        await _userCollectionRef
+            .doc(specialistModel.email)
+            .set(specialistModel.toJson());
       } catch (e) {
-        debugPrint('error in consultant signup: ${e.toString()}');
+        debugPrint('Firestore specialist save failed: $e');
+        try {
+          await user.delete();
+        } catch (_) {}
+        return 'Error in Request submission . Try again later!';
       }
+      await _prefManager.saveUserModelInPref(specialistModel);
+      notifyListeners();
+      return 'Request submitted successfully!';
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        return 'User already exists with provided email';
+      }
+      debugPrint('error in consultant signup auth: ${e.toString()}');
+      return 'Error in Request submission . Try again later!';
+    } catch (e) {
+      debugPrint('error in consultant signup: ${e.toString()}');
       return 'Error in Request submission . Try again later!';
     }
   }
@@ -266,12 +427,9 @@ class UserProvider extends ChangeNotifier {
 
       final model = UserModel.fromJson(data);
 
-      // Debug print stripe status
-      debugPrint('Parsed Stripe Status: ${model.toJson()}');
+      debugPrint('Parsed specialist user: ${model.toJson()}');
 
-      if (model.specialist?.isStripeActive == true) {
-        _specialistsList.add(model);
-      }
+      _specialistsList.add(model);
     }
     return _specialistsList;
   }
@@ -290,9 +448,16 @@ class UserProvider extends ChangeNotifier {
   Future<void> logoutUser() async {
     try {
       await FirebaseAuth.instance.signOut();
-      _prefManager.deleteUser();
+      await _prefManager.deleteUser();
+      _userStreamEmail = null;
+      _userStream = null;
+      _specialistsList.clear();
+      _isLoading = false;
+      notifyListeners();
     } catch (e) {
       e.logError();
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -305,31 +470,4 @@ class UserProvider extends ChangeNotifier {
     return _selectedCat;
   }
 
-  Future<String> _createStripeUser(
-    String name,
-    String email,
-    UserType type,
-  ) async {
-    await StripeController.instance.createStripeAccount(email);
-    return StripeController.instance.getAccountId() ?? '';
-
-    // final body = <String, dynamic>{
-    //   'name': name,
-    //   'email': email,
-    //   'description': 'New Stripe ${type.name} user is created',
-    //   //'customer': getCurrentUserId()
-    // };
-    // final response = await http.post(
-    //   Uri.parse('https://api.stripe.com/v1/customers'),
-    //   headers: {
-    //     'Authorization': 'Bearer ${dotenv.env['STRIPE_SECRET']}',
-    //     'Content-Type': 'application/x-www-form-urlencoded',
-    //   },
-    //   body: body,
-    // );
-    // print('stripe customer created -> $response');
-    // final customerJson = json.decode(response.body);
-    // print('stripe customer created -> $customerJson');
-    // return customerJson['id'];
-  }
 }

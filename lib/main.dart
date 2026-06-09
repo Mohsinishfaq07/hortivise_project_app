@@ -1,13 +1,13 @@
 // import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:horti_vige/constants.dart';
 import 'package:horti_vige/data/services/notification_service.dart';
 import 'package:horti_vige/firebase_options.dart';
@@ -19,7 +19,6 @@ import 'package:horti_vige/providers/consultations_provider.dart';
 import 'package:horti_vige/providers/notifications_provider.dart';
 import 'package:horti_vige/providers/packages_provider.dart';
 import 'package:horti_vige/providers/user_provider.dart';
-import 'package:horti_vige/providers/wallet_provider.dart';
 import 'package:horti_vige/ui/screens/auth/become_consultant_screen.dart';
 import 'package:horti_vige/ui/screens/auth/change_password_screen.dart';
 import 'package:horti_vige/ui/screens/auth/forgot_password_screen.dart';
@@ -39,7 +38,6 @@ import 'package:horti_vige/ui/screens/consultant/main/consultant_main_screen.dar
 import 'package:horti_vige/ui/screens/greetings/booking_success_screen.dart';
 import 'package:horti_vige/ui/screens/greetings/congrats_screen.dart';
 import 'package:horti_vige/ui/screens/greetings/thank_you_screen.dart';
-import 'package:horti_vige/ui/screens/payment/card/custom_card_payment_screen.dart';
 import 'package:horti_vige/ui/screens/user/appointment/book_appointment_screen.dart';
 import 'package:horti_vige/ui/screens/user/calendar_screen.dart';
 import 'package:horti_vige/ui/screens/user/consultant_details_screen.dart';
@@ -47,7 +45,6 @@ import 'package:horti_vige/ui/screens/video_call_screen.dart';
 import 'package:horti_vige/ui/utils/colors/colors.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/ui/widgets/app_nav_drawer.dart';
-import 'package:horti_vige/core/utils/app_consts.dart';
 import 'package:horti_vige/core/utils/helpers/preference_manager.dart';
 import 'package:http/http.dart';
 import 'package:provider/provider.dart';
@@ -62,8 +59,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Ensure Firestore isn’t left disabled after offline/errors (helps flaky links).
+  await FirebaseFirestore.instance.enableNetwork();
   //await FirebaseAppCheck.instance.activate();
-  Stripe.publishableKey = Constants.kStripePublishKey;
   // await dotenv.load(fileName: 'assets/.env');
 
   NotificationService.setupNotifications();
@@ -148,7 +146,6 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => ConsultationProvider()),
         ChangeNotifierProvider(create: (_) => PackagesProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
-        ChangeNotifierProvider(create: (_) => WalletProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => BlogsProvider()),
         ChangeNotifierProvider(
@@ -156,18 +153,18 @@ class _MyAppState extends State<MyApp> {
             userProvider: UserProvider(),
           ),
         ),
-        ChangeNotifierProvider(
-          create: (_) => ConsultationPricingProvider(
-            userProvider: UserProvider(),
-          ),
-        ),
+        // ChangeNotifierProvider(
+        //   create: (_) => ConsultationPricingProvider(
+        //     userProvider: UserProvider(),
+        //   ),
+        // ),
       ],
       child: MediaQuery(
         data: MediaQuery.of(context).copyWith(
           textScaler: TextScaler.noScaling,
         ),
         child: MaterialApp(
-          title: 'Hortivise',
+          title: 'ebooking',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: AppColors.colorGreen),
@@ -209,14 +206,12 @@ class _MyAppState extends State<MyApp> {
                 const ConsultationRequestScreen(),
             ProfileScreen.routeName: (ctx) => const ProfileScreen(),
             BlogDetailScreen.routeName: (ctx) => const BlogDetailScreen(),
-            CustomCardPaymentScreen.routeName: (ctx) =>
-                const CustomCardPaymentScreen(),
             ChangePasswordScreen.routeName: (ctx) =>
                 const ChangePasswordScreen(),
             DemoAppHome.routeName: (ctx) => const DemoAppHome(),
-            ConsultationPricingScreen.routeName: (ctx) =>
-                const ConsultationPricingScreen(),
-            AddPricingScreen.routeName: (ctx) => const AddPricingScreen(),
+            // ConsultationPricingScreen.routeName: (ctx) =>
+            //     const ConsultationPricingScreen(),
+            // AddPricingScreen.routeName: (ctx) => const AddPricingScreen(),
             ForgotPasswordScreen.routeName: (ctx) =>
                 const ForgotPasswordScreen(),
             ConversationScreen.routeName: (ctx) => const ConversationScreen(),
@@ -230,8 +225,7 @@ class _MyAppState extends State<MyApp> {
 // top class function to store the local time zone
 void getTimeZoneAndSave() async {
   String localTimeZone =
-      await FlutterTimezone.getLocalTimezone(); // e.g., Asia/Karachi
-  print('Local time zone: $localTimeZone');
+      (await FlutterTimezone.getLocalTimezone()).identifier; // e.g., Asia/Karachi
   String? matchedTimeZone = timeZoneMapping[localTimeZone];
   SharedPreferences sf = await SharedPreferences.getInstance();
   sf.remove('localTimeZone');

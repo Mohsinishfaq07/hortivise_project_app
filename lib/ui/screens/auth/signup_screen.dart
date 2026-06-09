@@ -253,9 +253,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Future<void> _signUpUser() async {
     FocusScope.of(context).unfocus();
 
-    if (_profileUrl.isEmpty) {
-      context.showSnack(message: 'Please pick your profile photo first');
-    } else if (isUserNameValid(_name) != null) {
+    if (isUserNameValid(_name) != null) {
       setState(() {
         _nameError = isUserNameValid(_name);
       });

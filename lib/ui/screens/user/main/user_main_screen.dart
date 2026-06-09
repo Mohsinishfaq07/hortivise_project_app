@@ -22,7 +22,6 @@ class _UserMainScreenState extends State<UserMainScreen> {
   final _pages = const [
     UserHomePage(),
     UserConsultantsPage(),
-    // UserWalletPage(),
     UserNotificationsPage(),
     UserBlogsPage(),
   ];
@@ -75,11 +74,6 @@ class _UserMainScreenState extends State<UserMainScreen> {
                 activeIcon: Icon(AppIcons.consultations_filled),
                 label: 'Consultation',
               ),
-              // BottomNavigationBarItem(
-              //   icon: Icon(AppIcons.wallet_outlined),
-              //   activeIcon: Icon(AppIcons.wallet_filled),
-              //   label: 'Wallet',
-              // ),
               BottomNavigationBarItem(
                 icon: Icon(AppIcons.notifications_outlined),
                 activeIcon: Icon(AppIcons.notificatins_filled),

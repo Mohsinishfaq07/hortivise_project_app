@@ -1,0 +1,23 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "Consultations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "specialist.id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

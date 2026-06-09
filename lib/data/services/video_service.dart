@@ -11,7 +11,9 @@ class VideoService {
 
   late Call call;
 
-  Future<void> init(UserModel currentUser, String docId) async {
+  /// Returns `false` if token, Stream connect, or [Call.join] fails (e.g. TLS errors
+  /// from VPN/proxy/HTTPS filtering on the device network).
+  Future<bool> init(UserModel currentUser, String docId) async {
     try {
       StreamVideo.reset();
       final userId = 'user_${currentUser.id}';
@@ -21,28 +23,9 @@ class VideoService {
         apiKey,
         user: User.regular(userId: userId, name: currentUser.userName),
         userToken: userToken,
-        options: const StreamVideoOptions(
+        options: StreamVideoOptions(
           logPriority: Priority.info,
         ),
-        // pushNotificationManagerProvider: (client, streamVideo) {
-        //   return StreamVideoPushNotificationManager.create(
-        //     androidPushProvider:
-        //         const StreamVideoPushProvider.firebase(name: 'firebase'),
-        //     iosPushProvider: const StreamVideoPushProvider.firebase(
-        //       name: 'firebase',
-        //     ),
-        //     callerCustomizationCallback: ({
-        //       required callCid,
-        //       callerHandle,
-        //       callerName,
-        //     }) {
-        //       return CallerCustomizationResponse(
-        //         name: callerName,
-        //         handle: callerHandle,
-        //       );
-        //     },
-        //   );
-        // },
       );
 
       call = client.makeCall(
@@ -50,14 +33,11 @@ class VideoService {
         id: docId,
       );
 
-      // await call.getOrCreate(
-      //   ringing: true,
-      //   memberIds: [userId, '${userId}_sdf'],
-      // );
       await call.join();
-      // await call.accept();
+      return true;
     } catch (e) {
       e.logError();
+      return false;
     }
   }
 
@@ -141,6 +121,6 @@ class VideoService {
 
   // RtcEngine get engine => _engine;
   int get remoteUid => _remoteUid ?? 0;
-  String channelName = 'hortivise';
+  String channelName = 'ebooking';
   bool get localUserJoined => _localUserJoined;
 }

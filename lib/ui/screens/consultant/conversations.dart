@@ -9,6 +9,7 @@ import 'package:horti_vige/providers/user_provider.dart';
 import 'package:horti_vige/ui/screens/common/conversation_screen.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/ui/widgets/app_nav_drawer.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 import 'package:intl/intl.dart';
 import 'package:horti_vige/core/utils/app_consts.dart';
 import 'package:horti_vige/data/models/inbox/inbox_user.dart';
@@ -173,12 +174,10 @@ class _ConversationsState extends State<Conversations> {
         },
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
         tileColor: Colors.white,
-        leading: CircleAvatar(
-          backgroundImage: NetworkImage(
-            currentUser.type == UserType.CUSTOMER
-                ? model.consultant!.profileUrl
-                : model.user!.profileUrl,
-          ),
+        leading: UserProfileAvatar(
+          imageUrl: currentUser.type == UserType.CUSTOMER
+              ? model.consultant!.profileUrl
+              : model.user!.profileUrl,
           radius: 24,
         ),
         title: Text(

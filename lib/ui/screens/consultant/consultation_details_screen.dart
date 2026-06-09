@@ -21,10 +21,9 @@ import 'package:horti_vige/ui/utils/extensions/extensions.dart';
 import 'package:horti_vige/ui/utils/styles/text_styles.dart';
 import 'package:horti_vige/ui/widgets/app_filled_button.dart';
 import 'package:horti_vige/ui/widgets/app_outlined_button.dart';
+import 'package:horti_vige/ui/widgets/user_profile_avatar.dart';
 import 'package:provider/provider.dart';
 import 'dart:developer' as d;
-
-import 'dart:async';
 
 class ConsultationDetailsScreen extends StatefulWidget {
   const ConsultationDetailsScreen({
@@ -73,6 +72,22 @@ class _ConsultationDetailsScreenState extends State<ConsultationDetailsScreen> {
     timer?.cancel();
     statusTimer?.cancel();
     super.dispose();
+  }
+
+  Widget _profileHeaderImage(String profileUrl) {
+    if (!UserProfileImage.hasRemote(profileUrl)) {
+      return Container(
+        height: 300,
+        width: double.infinity,
+        color: AppColors.colorGrayBg,
+        child: const Icon(Icons.person, size: 120, color: Colors.grey),
+      );
+    }
+    return Image.network(
+      profileUrl,
+      height: 300,
+      fit: BoxFit.contain,
+    );
   }
 
   // abdul rehnman  function to get status
@@ -167,12 +182,10 @@ class _ConsultationDetailsScreenState extends State<ConsultationDetailsScreen> {
                       left: 0,
                       right: 0,
                       top: 0,
-                      child: Image.network(
+                      child: _profileHeaderImage(
                         isCustomer
                             ? consultation.specialist.profileUrl
                             : consultation.customer.profileUrl,
-                        height: 300,
-                        fit: BoxFit.contain,
                       ),
                     ),
                     Positioned(
